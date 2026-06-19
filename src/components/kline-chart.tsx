@@ -472,7 +472,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
               variant={mainIndicator === indicator.key ? 'default' : 'outline'}
               className={`shrink-0 cursor-pointer px-2 py-0.5 text-xs ${
                 mainIndicator === indicator.key
-                  ? 'border-[#30d158]/50 bg-[#30d158]/20 text-[#30d158] hover:bg-[#30d158]/30'
+                  ? 'border-blue-500/50 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30'
                   : 'border-[#3a3a3c] text-[#98989d] hover:text-white'
               }`}
               onClick={() => toggleMainIndicator(indicator.key)}
@@ -490,7 +490,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
               variant={subIndicators.includes(indicator.key) ? 'default' : 'outline'}
               className={`shrink-0 cursor-pointer px-2 py-0.5 text-xs ${
                 subIndicators.includes(indicator.key)
-                  ? 'border-[#ff453a]/50 bg-[#ff453a]/20 text-[#ff453a] hover:bg-[#ff453a]/30'
+                  ? 'border-violet-500/50 bg-violet-500/20 text-violet-300 hover:bg-violet-500/30'
                   : 'border-[#3a3a3c] text-[#98989d] hover:text-white'
               }`}
               onClick={() => toggleSubIndicator(indicator.key)}
