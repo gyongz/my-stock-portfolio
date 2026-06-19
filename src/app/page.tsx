@@ -199,10 +199,10 @@ function HomeContent() {
       />
 
       {/* 主内容区 */}
-      <div className="flex-1 flex flex-col xl:flex-row gap-0 relative">
+      <div className="flex-1 flex flex-col xl:flex-row gap-0 relative overflow-hidden">
         {/* KLine 图表区域 */}
         {showChart && (
-          <div className={`bg-[#1c1c1e] relative ${
+          <div className={`bg-[#1c1c1e] relative min-w-0 ${
             sideCollapsed ? 'xl:flex-1' : 'xl:w-[65%]'
           }`}>
             <KLineChart
