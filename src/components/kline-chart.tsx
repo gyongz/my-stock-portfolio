@@ -329,26 +329,26 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
     <div
       className={
         isFocusMode
-          ? 'fixed inset-0 z-50 flex h-screen flex-col bg-slate-950'
+          ? 'fixed inset-0 z-50 flex h-screen flex-col bg-[#1c1c1e]'
           : 'flex h-full flex-col'
       }
     >
-      <div className="flex items-center justify-between border-b border-slate-700/50 px-4 py-3">
+      <div className="flex items-center justify-between border-b border-[#38383a]/50 px-4 py-3">
         <div className="flex items-center gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-100">{stockName}</h2>
-            <span className="text-sm text-slate-400">{stockCode}</span>
+            <h2 className="text-lg font-semibold text-white">{stockName}</h2>
+            <span className="text-sm text-[#98989d]">{stockCode}</span>
           </div>
-          <span className="ml-4 font-mono text-2xl font-bold text-slate-100">
+          <span className="ml-4 font-mono text-2xl font-bold text-white">
             {currentPrice.toFixed(2)}
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="hidden text-xs text-slate-500 sm:inline">数据为模拟演示</span>
+          <span className="hidden text-xs text-[#98989d] sm:inline">数据为模拟演示</span>
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 px-2 text-xs text-slate-400 hover:text-slate-100"
+            className="h-7 px-2 text-xs text-[#98989d] hover:text-white"
             onClick={exportChartImage}
           >
             <Camera className="mr-1 h-3.5 w-3.5" />
@@ -357,7 +357,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 px-2 text-xs text-slate-400 hover:text-slate-100"
+            className="h-7 px-2 text-xs text-[#98989d] hover:text-white"
             onClick={() => setIsFocusMode((current) => !current)}
           >
             {isFocusMode ? (
@@ -370,9 +370,9 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
         </div>
       </div>
 
-      <div className="border-b border-slate-700/50 px-4 py-2">
+      <div className="border-b border-[#38383a]/50 px-4 py-2">
         <div className="flex w-full max-w-full items-center gap-1 overflow-x-auto">
-          <span className="mr-1 text-xs text-slate-400">周期:</span>
+          <span className="mr-1 text-xs text-[#98989d]">周期:</span>
           {timePeriods.map((period) => (
             <Button
               key={period}
@@ -380,8 +380,8 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
               size="sm"
               className={`h-7 shrink-0 px-2 text-xs ${
                 activePeriod === period
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-[#3a3a3c] text-white'
+                  : 'text-[#98989d] hover:text-white'
               }`}
               onClick={() => setActivePeriod(period)}
             >
@@ -395,13 +395,13 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
         ref={containerRef}
         className={
           isFocusMode
-            ? 'min-h-0 w-full flex-1'
-            : 'h-[400px] w-full xl:h-auto xl:min-h-[400px] xl:flex-1'
+            ? 'min-h-0 w-full flex-1 bg-[#1c1c1e]'
+            : 'h-[400px] w-full bg-[#1c1c1e] xl:h-auto xl:min-h-[400px] xl:flex-1'
         }
       />
 
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-700/50 bg-slate-900/70 px-4 py-1.5">
-        <span className="mr-1 text-xs text-slate-500">画线:</span>
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-[#38383a]/50 bg-[#2c2c2e]/80 px-4 py-1.5">
+        <span className="mr-1 text-xs text-[#98989d]">画线:</span>
         {overlayTools.map((tool) => {
           const Icon = tool.icon;
           return (
@@ -430,11 +430,11 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
           <Eraser className="mr-1 h-3.5 w-3.5" />
           清空
         </Button>
-        <div className="mx-1 h-4 w-px bg-slate-700" />
+        <div className="mx-1 h-4 w-px bg-[#38383a]" />
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 text-slate-400 hover:text-slate-100"
+          className="h-7 w-7 text-[#98989d] hover:text-white"
           aria-label="放大图表"
           onClick={() => zoomChart(1.2)}
         >
@@ -443,7 +443,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 text-slate-400 hover:text-slate-100"
+          className="h-7 w-7 text-[#98989d] hover:text-white"
           aria-label="缩小图表"
           onClick={() => zoomChart(0.8)}
         >
@@ -452,28 +452,28 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 px-2 text-xs text-slate-400 hover:text-slate-100"
+          className="h-7 px-2 text-xs text-[#98989d] hover:text-white"
           onClick={scrollToLatest}
         >
           <RotateCcw className="mr-1 h-3.5 w-3.5" />
           回到最新
         </Button>
-        <span className="ml-auto hidden text-[11px] text-slate-600 lg:inline">
+        <span className="ml-auto hidden text-[11px] text-[#636366] lg:inline">
           Shift + ←/→ 平移 · Shift + +/- 缩放
         </span>
       </div>
 
-      <div className="flex flex-col items-stretch gap-2 border-b border-slate-700/50 bg-slate-900/70 px-4 py-2">
+      <div className="flex flex-col items-stretch gap-2 border-b border-[#38383a]/50 bg-[#2c2c2e]/80 px-4 py-2">
         <div className="flex w-full min-w-0 max-w-full items-center gap-1 overflow-x-auto">
-          <span className="mr-1 shrink-0 text-xs text-slate-400">主图:</span>
+          <span className="mr-1 shrink-0 text-xs text-[#98989d]">主图:</span>
           {mainIndicators.map((indicator) => (
             <Badge
               key={indicator.key}
               variant={mainIndicator === indicator.key ? 'default' : 'outline'}
               className={`shrink-0 cursor-pointer px-2 py-0.5 text-xs ${
                 mainIndicator === indicator.key
-                  ? 'border-blue-600/50 bg-blue-600/20 text-blue-400 hover:bg-blue-600/30'
-                  : 'border-slate-600 text-slate-400 hover:text-slate-200'
+                  ? 'border-[#30d158]/50 bg-[#30d158]/20 text-[#30d158] hover:bg-[#30d158]/30'
+                  : 'border-[#3a3a3c] text-[#98989d] hover:text-white'
               }`}
               onClick={() => toggleMainIndicator(indicator.key)}
             >
@@ -483,15 +483,15 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
         </div>
 
         <div className="flex w-full min-w-0 max-w-full items-center gap-1 overflow-x-auto">
-          <span className="mr-1 shrink-0 text-xs text-slate-400">副图:</span>
+          <span className="mr-1 shrink-0 text-xs text-[#98989d]">副图:</span>
           {subIndicatorList.map((indicator) => (
             <Badge
               key={indicator.key}
               variant={subIndicators.includes(indicator.key) ? 'default' : 'outline'}
               className={`shrink-0 cursor-pointer px-2 py-0.5 text-xs ${
                 subIndicators.includes(indicator.key)
-                  ? 'border-violet-500/50 bg-violet-500/20 text-violet-300 hover:bg-violet-500/30'
-                  : 'border-slate-600 text-slate-400 hover:text-slate-200'
+                  ? 'border-[#ff453a]/50 bg-[#ff453a]/20 text-[#ff453a] hover:bg-[#ff453a]/30'
+                  : 'border-[#3a3a3c] text-[#98989d] hover:text-white'
               }`}
               onClick={() => toggleSubIndicator(indicator.key)}
             >
