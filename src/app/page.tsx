@@ -2,9 +2,8 @@
 
 import { useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { Plus, LayoutDashboard } from 'lucide-react';
+import { Plus, LayoutDashboard, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { usePortfolio } from '@/hooks/use-portfolio';
 import HoldingsTable from '@/components/holdings-table';
 import HoldingsDialog from '@/components/holdings-dialog';
@@ -17,9 +16,9 @@ import { getStockName, getStockBasePrice } from '@/lib/kline-data';
 const KLineChart = dynamic(() => import('@/components/kline-chart'), {
   ssr: false,
   loading: () => (
-    <div className="flex items-center justify-center h-full min-h-[400px] text-slate-500">
+    <div className="flex items-center justify-center h-full min-h-[400px] text-[#98989d]">
       <div className="flex flex-col items-center gap-2">
-        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-[#30d158] border-t-transparent rounded-full animate-spin" />
         <span className="text-sm">加载图表中...</span>
       </div>
     </div>
@@ -83,28 +82,32 @@ export default function Home() {
   const displayPrice = selectedHolding?.currentPrice ?? getStockBasePrice(displayCode);
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col">
-      {/* 顶栏 */}
-      <header className="border-b border-slate-700/50 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="flex items-center justify-between px-4 h-12">
+    <div className="min-h-screen bg-[#1c1c1e] flex flex-col">
+      {/* 顶栏 - Apple 风格 */}
+      <header className="bg-[#1c1c1e]/80 backdrop-blur-xl sticky top-0 z-10 border-b border-white/[0.06]">
+        <div className="flex items-center justify-between px-5 h-11">
           <div className="flex items-center gap-3">
-            <LayoutDashboard className="w-5 h-5 text-blue-400" />
-            <h1 className="text-base font-semibold text-slate-100 hidden sm:block">
-              个人持仓管理
-            </h1>
-            <Badge variant="outline" className="text-xs text-slate-500 border-slate-700">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-[#30d158]/10 flex items-center justify-center">
+                <LayoutDashboard className="w-4 h-4 text-[#30d158]" />
+              </div>
+              <h1 className="text-[15px] font-semibold text-white tracking-tight hidden sm:block">
+                个人持仓
+              </h1>
+            </div>
+            <span className="text-[11px] text-[#98989d] bg-white/[0.06] px-2 py-0.5 rounded-md">
               模拟演示
-            </Badge>
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <ImportExport holdings={holdings} onImport={importHoldings} />
             <Button
               size="sm"
               onClick={handleOpenAdd}
-              className="bg-blue-600 hover:bg-blue-700 text-white h-8"
+              className="bg-[#30d158] hover:bg-[#30d158]/90 text-white h-7 px-3 text-xs font-medium rounded-lg shadow-none"
             >
               <Plus className="w-3.5 h-3.5 mr-1" />
-              添加持仓
+              添加
             </Button>
           </div>
         </div>
@@ -125,7 +128,7 @@ export default function Home() {
       <div className="flex-1 flex flex-col xl:flex-row gap-0 relative">
         {/* KLine 图表区域 */}
         {showChart && (
-          <div className={`border-b xl:border-b-0 xl:border-r border-slate-700/50 bg-slate-900 relative ${
+          <div className={`bg-[#1c1c1e] relative ${
             sideCollapsed ? 'xl:flex-1' : 'xl:w-[65%]'
           }`}>
             <KLineChart
@@ -136,41 +139,31 @@ export default function Home() {
             {/* 收起/展开侧栏按钮 */}
             <button
               onClick={() => setSideCollapsed((v) => !v)}
-              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 w-5 h-10 rounded-r-md flex items-center justify-center
-                         bg-slate-800 border border-slate-600/50 border-l-0 text-slate-400 hover:text-slate-200 hover:bg-slate-700
+              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 w-5 h-10 rounded-r-lg flex items-center justify-center
+                         bg-[#2c2c2e] text-[#98989d] hover:text-white hover:bg-[#3a3a3c]
                          transition-colors cursor-pointer hidden xl:flex"
               title={sideCollapsed ? '展开持仓列表' : '收起持仓列表'}
             >
-              <svg
-                className={`w-3.5 h-3.5 transition-transform ${sideCollapsed ? '' : 'rotate-180'}`}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
+              <ChevronLeft className={`w-3.5 h-3.5 transition-transform ${sideCollapsed ? '' : 'rotate-180'}`} />
             </button>
           </div>
         )}
 
         {/* 持仓列表区域 */}
-        <div className={`flex flex-col min-w-0 ${
+        <div className={`flex flex-col min-w-0 bg-[#1c1c1e] ${
           sideCollapsed ? 'xl:w-[180px]' : 'xl:flex-1'
         }`}>
-          <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700/50">
-            <h3 className="text-sm font-medium text-slate-300">
-              持仓列表
-              <span className="text-xs text-slate-500 ml-2">
+          <div className="flex items-center justify-between px-4 py-2.5">
+            <h3 className="text-[13px] font-medium text-white/70 tracking-tight">
+              持仓
+              <span className="text-[11px] text-[#98989d] ml-1.5">
                 {holdings.length} 只
               </span>
             </h3>
             <Button
               variant="ghost"
               size="sm"
-              className="text-xs text-slate-400 hover:text-slate-200 h-7 xl:hidden"
+              className="text-xs text-[#98989d] hover:text-white h-7 xl:hidden"
               onClick={() => setShowChart(!showChart)}
             >
               {showChart ? '隐藏图表' : '显示图表'}
@@ -189,8 +182,8 @@ export default function Home() {
 
           {/* 底部操作提示 */}
           {holdings.length > 0 && !sideCollapsed && (
-            <div className="px-4 py-2 border-t border-slate-700/50 text-xs text-slate-500 text-center">
-              点击任一行可在图表中查看 K 线 • 支持缩放平移 • 周期和指标可切换
+            <div className="px-4 py-2.5 text-[11px] text-[#98989d] text-center border-t border-white/[0.06]">
+              点击持仓查看 K 线 · 支持缩放平移 · 周期和指标可切换
             </div>
           )}
         </div>

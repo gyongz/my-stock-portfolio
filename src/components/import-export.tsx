@@ -99,7 +99,7 @@ export default function ImportExport({ holdings, onImport }: ImportExportProps) 
         variant="ghost"
         size="sm"
         onClick={handleExport}
-        className="text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 h-8"
+        className="text-[#98989d] hover:text-white hover:bg-white/[0.08] h-8 rounded-lg"
       >
         <Download className="w-3.5 h-3.5 mr-1" />
         导出
@@ -108,7 +108,7 @@ export default function ImportExport({ holdings, onImport }: ImportExportProps) 
         variant="ghost"
         size="sm"
         onClick={handleImport}
-        className="text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 h-8"
+        className="text-[#98989d] hover:text-white hover:bg-white/[0.08] h-8 rounded-lg"
       >
         <Upload className="w-3.5 h-3.5 mr-1" />
         导入

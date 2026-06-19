@@ -113,30 +113,30 @@ export default function HoldingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-700 text-slate-100 sm:max-w-md">
+      <DialogContent className="bg-[#2c2c2e] border-white/[0.06] text-white sm:max-w-md rounded-2xl shadow-none">
         <DialogHeader>
-          <DialogTitle className="text-slate-100">
+          <DialogTitle className="text-white text-[17px] font-semibold tracking-tight">
             {editingHolding ? '编辑持仓' : '添加持仓'}
           </DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-[#98989d] text-sm">
             {editingHolding ? '修改持仓记录信息' : '输入新的持仓记录信息'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* 股票选择 */}
-          <div className="space-y-2">
-            <Label htmlFor="stock-select" className="text-slate-300 text-sm">
+          <div className="space-y-1.5">
+            <Label htmlFor="stock-select" className="text-white/80 text-sm font-medium">
               股票代码
             </Label>
             <Select value={code} onValueChange={handleCodeSelect}>
               <SelectTrigger
                 id="stock-select"
-                className="bg-slate-800 border-slate-600 text-slate-200"
+                className="bg-[#3a3a3c] border-0 text-white rounded-xl h-10 px-3"
               >
                 <SelectValue placeholder="选择股票或手动输入代码" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-600 text-slate-200">
+              <SelectContent className="bg-[#2c2c2e] border-white/[0.08] text-white rounded-xl">
                 {STOCK_LIST.map((stock) => (
                   <SelectItem key={stock.code} value={stock.code}>
                     {stock.code} - {stock.name}
@@ -144,12 +144,12 @@ export default function HoldingsDialog({
                 ))}
               </SelectContent>
             </Select>
-            {errors.code && <p className="text-xs text-red-400">{errors.code}</p>}
+            {errors.code && <p className="text-xs text-[#ff453a]">{errors.code}</p>}
           </div>
 
           {/* 股票名称 */}
-          <div className="space-y-2">
-            <Label htmlFor="stock-name" className="text-slate-300 text-sm">
+          <div className="space-y-1.5">
+            <Label htmlFor="stock-name" className="text-white/80 text-sm font-medium">
               股票名称
             </Label>
             <Input
@@ -157,14 +157,14 @@ export default function HoldingsDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="输入股票名称"
-              className="bg-slate-800 border-slate-600 text-slate-200 placeholder:text-slate-500"
+              className="bg-[#3a3a3c] border-0 text-white placeholder:text-[#98989d] rounded-xl h-10"
             />
-            {errors.name && <p className="text-xs text-red-400">{errors.name}</p>}
+            {errors.name && <p className="text-xs text-[#ff453a]">{errors.name}</p>}
           </div>
 
           {/* 持仓数量 */}
-          <div className="space-y-2">
-            <Label htmlFor="quantity" className="text-slate-300 text-sm">
+          <div className="space-y-1.5">
+            <Label htmlFor="quantity" className="text-white/80 text-sm font-medium">
               持仓数量
             </Label>
             <Input
@@ -175,14 +175,14 @@ export default function HoldingsDialog({
               placeholder="例如: 1000"
               min="1"
               step="1"
-              className="bg-slate-800 border-slate-600 text-slate-200 placeholder:text-slate-500"
+              className="bg-[#3a3a3c] border-0 text-white placeholder:text-[#98989d] rounded-xl h-10"
             />
-            {errors.quantity && <p className="text-xs text-red-400">{errors.quantity}</p>}
+            {errors.quantity && <p className="text-xs text-[#ff453a]">{errors.quantity}</p>}
           </div>
 
           {/* 买入价格 */}
-          <div className="space-y-2">
-            <Label htmlFor="buy-price" className="text-slate-300 text-sm">
+          <div className="space-y-1.5">
+            <Label htmlFor="buy-price" className="text-white/80 text-sm font-medium">
               买入均价
             </Label>
             <Input
@@ -193,14 +193,14 @@ export default function HoldingsDialog({
               placeholder="例如: 58.50"
               min="0.01"
               step="0.01"
-              className="bg-slate-800 border-slate-600 text-slate-200 placeholder:text-slate-500"
+              className="bg-[#3a3a3c] border-0 text-white placeholder:text-[#98989d] rounded-xl h-10"
             />
-            {errors.buyPrice && <p className="text-xs text-red-400">{errors.buyPrice}</p>}
+            {errors.buyPrice && <p className="text-xs text-[#ff453a]">{errors.buyPrice}</p>}
           </div>
 
           {/* 当前价格 */}
-          <div className="space-y-2">
-            <Label htmlFor="current-price" className="text-slate-300 text-sm">
+          <div className="space-y-1.5">
+            <Label htmlFor="current-price" className="text-white/80 text-sm font-medium">
               当前价格
             </Label>
             <Input
@@ -211,23 +211,23 @@ export default function HoldingsDialog({
               placeholder="例如: 65.80"
               min="0.01"
               step="0.01"
-              className="bg-slate-800 border-slate-600 text-slate-200 placeholder:text-slate-500"
+              className="bg-[#3a3a3c] border-0 text-white placeholder:text-[#98989d] rounded-xl h-10"
             />
-            {errors.currentPrice && <p className="text-xs text-red-400">{errors.currentPrice}</p>}
+            {errors.currentPrice && <p className="text-xs text-[#ff453a]">{errors.currentPrice}</p>}
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 mt-4">
+        <div className="flex justify-end gap-2 mt-5">
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}
-            className="text-slate-400 hover:text-slate-200"
+            className="text-[#98989d] hover:text-white hover:bg-white/[0.08] rounded-xl h-9 px-4"
           >
             取消
           </Button>
           <Button
             onClick={handleSubmit}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="bg-[#30d158] hover:bg-[#30d158]/90 text-white rounded-xl h-9 px-5 shadow-none font-medium"
           >
             {editingHolding ? '保存修改' : '添加'}
           </Button>

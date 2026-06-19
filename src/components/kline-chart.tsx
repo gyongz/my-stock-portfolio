@@ -136,20 +136,20 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
       hotkey: { enabled: true },
       styles: {
         grid: {
-          horizontal: { style: 'dashed', size: 1, color: '#334155', dashedValue: [4, 4] },
-          vertical: { style: 'dashed', size: 1, color: '#334155', dashedValue: [4, 4] },
+          horizontal: { style: 'dashed', size: 1, color: '#38383a', dashedValue: [4, 4] },
+          vertical: { style: 'dashed', size: 1, color: '#38383a', dashedValue: [4, 4] },
         },
         candle: {
           type: 'candle_solid',
           bar: {
-            upColor: '#22c55e',
-            downColor: '#ef4444',
-            noChangeColor: '#94a3b8',
+            upColor: '#30d158',
+            downColor: '#ff453a',
+            noChangeColor: '#8e8e93',
           },
           priceMark: {
             show: true,
-            high: { show: true, color: '#94a3b8', textOffset: 4, textSize: 11 },
-            low: { show: true, color: '#94a3b8', textOffset: 4, textSize: 11 },
+            high: { show: true, color: '#8e8e93', textOffset: 4, textSize: 11 },
+            low: { show: true, color: '#8e8e93', textOffset: 4, textSize: 11 },
           },
           tooltip: {
             showRule: 'always',
@@ -157,30 +157,30 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
           },
         },
         xAxis: {
-          axisLine: { show: true, color: '#334155', size: 1 },
-          tickText: { color: '#64748b', size: 11 },
-          tickLine: { show: true, color: '#334155', size: 1 },
+          axisLine: { show: true, color: '#38383a', size: 1 },
+          tickText: { color: '#8e8e93', size: 11 },
+          tickLine: { show: true, color: '#38383a', size: 1 },
         },
         yAxis: {
-          axisLine: { show: true, color: '#334155', size: 1 },
-          tickText: { color: '#64748b', size: 11 },
-          tickLine: { show: true, color: '#334155', size: 1 },
+          axisLine: { show: true, color: '#38383a', size: 1 },
+          tickText: { color: '#8e8e93', size: 11 },
+          tickLine: { show: true, color: '#38383a', size: 1 },
         },
         separator: {
-          color: '#334155',
+          color: '#38383a',
           size: 1,
         },
         crosshair: {
           show: true,
           horizontal: {
             show: true,
-            line: { color: '#64748b', size: 1, style: 'dashed' as const, dashedValue: [4, 4] },
-            text: { show: true, color: '#94a3b8', size: 11, style: 'fill' as const },
+            line: { color: '#8e8e93', size: 1, style: 'dashed' as const, dashedValue: [4, 4] },
+            text: { show: true, color: '#aeaeb2', size: 11, style: 'fill' as const },
           },
           vertical: {
             show: true,
-            line: { color: '#64748b', size: 1, style: 'dashed' as const, dashedValue: [4, 4] },
-            text: { show: true, color: '#94a3b8', size: 11, style: 'fill' as const },
+            line: { color: '#8e8e93', size: 1, style: 'dashed' as const, dashedValue: [4, 4] },
+            text: { show: true, color: '#aeaeb2', size: 11, style: 'fill' as const },
           },
         },
       },
