@@ -34,17 +34,22 @@ function saveHoldings(holdings: Holding[]) {
 }
 
 /** 计算持仓盈亏 */
-function calcPnL(holding: Holding): HoldingWithPnL {
+function calcPnL(holding: Holding, prevPrice?: number): HoldingWithPnL {
   const costTotal = holding.buyPrice * holding.quantity;
   const marketValue = holding.currentPrice * holding.quantity;
   const pnl = marketValue - costTotal;
   const pnlPercent = costTotal > 0 ? (pnl / costTotal) * 100 : 0;
+  const prev = prevPrice ?? holding.currentPrice;
+  const dailyChange = holding.currentPrice - prev;
+  const dailyChangePercent = prev > 0 ? (dailyChange / prev) * 100 : 0;
   return {
     ...holding,
     costTotal: Math.round(costTotal * 100) / 100,
     marketValue: Math.round(marketValue * 100) / 100,
     pnl: Math.round(pnl * 100) / 100,
     pnlPercent: Math.round(pnlPercent * 100) / 100,
+    dailyChange: Math.round(dailyChange * 100) / 100,
+    dailyChangePercent: Math.round(dailyChangePercent * 100) / 100,
   };
 }
 
@@ -99,7 +104,9 @@ export function usePortfolio() {
   }, []);
 
   // 持有带盈亏计算的数据
-  const holdingsWithPnL: HoldingWithPnL[] = holdings.map(calcPnL);
+  const holdingsWithPnL: HoldingWithPnL[] = holdings.map((h) =>
+    calcPnL(h, prevPricesRef.current[h.id])
+  );
 
   // 总统计
   const totalStats = {
@@ -156,21 +163,24 @@ export function usePortfolio() {
       // 先保存旧的作为前一日价格
       const oldPrices: Record<string, number> = {};
       prev.forEach((h) => { oldPrices[h.id] = h.currentPrice; });
-      
+
       const next = prev.map((h) => {
         const change = (Math.random() - 0.48) * 0.04;
         const newPrice = Math.round(h.currentPrice * (1 + change) * 100) / 100;
         return { ...h, currentPrice: newPrice, updatedAt: new Date().toISOString() };
       });
       saveHoldings(next);
-      
+
+      // 更新 prevPricesRef 为刷新前的价格（下次刷新时作为昨日价）
+      prevPricesRef.current = oldPrices;
+
       // 计算日盈亏（新价格 vs 旧价格）
       const daily = next.reduce((sum, h) => {
         const oldPrice = oldPrices[h.id] ?? h.currentPrice;
         return sum + (h.currentPrice - oldPrice) * h.quantity;
       }, 0);
       setDailyPnL(Math.round(daily * 100) / 100);
-      
+
       return next;
     });
   }, []);

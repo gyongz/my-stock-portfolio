@@ -15,6 +15,8 @@ export interface HoldingWithPnL extends Holding {
   marketValue: number;      // 持仓市值
   pnl: number;              // 盈亏金额
   pnlPercent: number;       // 盈亏百分比
+  dailyChange: number;      // 当日涨跌额
+  dailyChangePercent: number; // 当日涨跌幅百分比
 }
 
 /** KLine 数据点 */
