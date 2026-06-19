@@ -157,16 +157,21 @@ export function usePortfolio() {
     });
   }, []);
 
-  /** 刷新当前价格（模拟实时行情变化） */
-  const refreshPrices = useCallback(() => {
+  /** 刷新当前价格（支持传入真实行情报价） */
+  const refreshPrices = useCallback((quotes?: Record<string, number>) => {
     setHoldings((prev) => {
       // 先保存旧的作为前一日价格
       const oldPrices: Record<string, number> = {};
       prev.forEach((h) => { oldPrices[h.id] = h.currentPrice; });
 
       const next = prev.map((h) => {
-        const change = (Math.random() - 0.48) * 0.04;
-        const newPrice = Math.round(h.currentPrice * (1 + change) * 100) / 100;
+        let newPrice: number;
+        if (quotes && quotes[h.code] !== undefined) {
+          newPrice = quotes[h.code];
+        } else {
+          const change = (Math.random() - 0.5) * 0.04;
+          newPrice = Math.round(h.currentPrice * (1 + change) * 100) / 100;
+        }
         return { ...h, currentPrice: newPrice, updatedAt: new Date().toISOString() };
       });
       saveHoldings(next);

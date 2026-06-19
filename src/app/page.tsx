@@ -9,6 +9,8 @@ import HoldingsTable from '@/components/holdings-table';
 import HoldingsDialog from '@/components/holdings-dialog';
 import PortfolioSummary from '@/components/portfolio-summary';
 import ImportExport from '@/components/import-export';
+import DataSourceSelector from '@/components/data-source-selector';
+import { DataSourceProvider, useDataSourceContext } from '@/lib/data-source/context';
 import type { Holding, HoldingWithPnL } from '@/lib/types';
 import { getStockName, getStockBasePrice } from '@/lib/kline-data';
 
@@ -26,6 +28,14 @@ const KLineChart = dynamic(() => import('@/components/kline-chart'), {
 });
 
 export default function Home() {
+  return (
+    <DataSourceProvider>
+      <HomeContent />
+    </DataSourceProvider>
+  );
+}
+
+function HomeContent() {
   const {
     holdings,
     holdingsWithPnL,
@@ -37,6 +47,7 @@ export default function Home() {
     refreshPrices,
     importHoldings,
   } = usePortfolio();
+  const { dataSourceId, setDataSource } = useDataSourceContext();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingHolding, setEditingHolding] = useState<Holding | null>(null);
@@ -81,6 +92,34 @@ export default function Home() {
   const displayName = selectedHolding?.name || getStockName(displayCode);
   const displayPrice = selectedHolding?.currentPrice ?? getStockBasePrice(displayCode);
 
+  /** 带数据源刷新的行情更新 */
+  const handleRefresh = useCallback(async () => {
+    if (dataSourceId === 'mock') {
+      refreshPrices();
+      return;
+    }
+    // 尝试从真实数据源获取行情
+    try {
+      const codes = holdings.map((h) => h.code).join(',');
+      const res = await fetch('/api/data-source', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: dataSourceId, type: 'quote', codes }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.success && result.data) {
+          // 使用真实的行情数据更新持仓：格式 { [code]: { price, change, changePercent } }
+          refreshPrices(result.data);
+          return;
+        }
+      }
+    } catch {
+      // 获取失败，回退到模拟刷新
+    }
+    refreshPrices();
+  }, [dataSourceId, holdings, refreshPrices]);
+
   return (
     <div className="min-h-screen bg-[#1c1c1e] flex flex-col">
       {/* 顶栏 - Apple 风格 */}
@@ -95,9 +134,12 @@ export default function Home() {
                 个人持仓
               </h1>
             </div>
-            <span className="text-[11px] text-[#98989d] bg-white/[0.06] px-2 py-0.5 rounded-md">
-              模拟演示
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-[#98989d] bg-white/[0.06] px-2 py-0.5 rounded-md">
+                模拟演示
+              </span>
+              <DataSourceSelector currentSource={dataSourceId} onSourceChange={setDataSource} />
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <ImportExport holdings={holdings} onImport={importHoldings} />
@@ -121,7 +163,7 @@ export default function Home() {
         totalPnL={totalStats.totalPnL}
         totalPnLPercent={totalStats.totalPnLPercent}
         dailyPnL={dailyPnL}
-        onRefresh={refreshPrices}
+        onRefresh={handleRefresh}
       />
 
       {/* 主内容区 */}

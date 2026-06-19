@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import type { TechnicalIndicator, TimePeriod } from '@/lib/types';
 import { generateMockKLineDataForStock } from '@/lib/kline-data';
+import { useDataSourceContext } from '@/lib/data-source/context';
 import {
   EMA_RSI_SIGNAL_INDICATOR,
   RSI_HEAT_INDICATOR,
@@ -105,11 +106,49 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
   const [activeDrawingTool, setActiveDrawingTool] = useState<string | null>(null);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [dataLoading, setDataLoading] = useState(false);
+  const { dataSourceId } = useDataSourceContext();
 
-  // 缓存 K 线数据 —— 只在股票代码或周期变化时重新生成
+  // 缓存 K 线数据 —— 优先从数据源获取，失败回退到模拟数据
   useEffect(() => {
-    dataRef.current = generateMockKLineDataForStock(stockCode, 520, activePeriod) as unknown as KLineChartData[];
-  }, [stockCode, activePeriod]);
+    let cancelled = false;
+    setDataLoading(true);
+
+    async function loadData() {
+      if (dataSourceId !== 'mock') {
+        try {
+          const res = await fetch('/api/data-source', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              source: dataSourceId,
+              type: 'kline',
+              code: stockCode,
+              period: activePeriod,
+              count: 520,
+            }),
+          });
+          if (!res.ok) throw new Error('API error');
+          const result = await res.json();
+          if (result.success && result.data.length > 0 && !cancelled) {
+            dataRef.current = result.data as KLineChartData[];
+            setDataLoading(false);
+            return;
+          }
+        } catch {
+          // 获取失败，回退到模拟数据
+        }
+      }
+      // 回退到模拟数据
+      if (!cancelled) {
+        dataRef.current = generateMockKLineDataForStock(stockCode, 520, activePeriod) as unknown as KLineChartData[];
+        setDataLoading(false);
+      }
+    }
+
+    loadData();
+    return () => { cancelled = true; };
+  }, [stockCode, activePeriod, dataSourceId]);
 
   // 用 ref 跟踪最新指标值，initChart 通过 ref 读取而非直接依赖
   const mainIndicatorRef = useRef(mainIndicator);
