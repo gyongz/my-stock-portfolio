@@ -131,6 +131,8 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<Chart | null>(null);
   const dataRef = useRef<KLineChartData[]>([]);
+  const drawingHistoryRef = useRef<string[]>([]);
+  const activeDrawingIdRef = useRef<string | null>(null);
   const [activePeriod, setActivePeriod] = useState<TimePeriod>('day');
   const [mainIndicator, setMainIndicator] = useState<TechnicalIndicator | null>('MA');
   const [subIndicators, setSubIndicators] = useState<TechnicalIndicator[]>(['MACD']);
@@ -306,10 +308,15 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
     });
 
     const persistedOverlays = readPersistedOverlays(drawingStorageKey);
+    drawingHistoryRef.current = [];
+    activeDrawingIdRef.current = null;
     if (persistedOverlays.length > 0) {
-      chart.createOverlay(persistedOverlays.map(buildPersistedOverlay));
+      const restoredIds = chart.createOverlay(persistedOverlays.map(buildPersistedOverlay));
+      drawingHistoryRef.current = Array.isArray(restoredIds)
+        ? restoredIds.filter((id): id is string => typeof id === 'string')
+        : [];
     }
-    setDrawingCount(persistedOverlays.length);
+    setDrawingCount(drawingHistoryRef.current.length);
   }, [stockCode, activePeriod, dataVersion, drawingStorageKey, buildPersistedOverlay]);
 
   const toggleMainIndicator = useCallback((indicator: TechnicalIndicator) => {
@@ -332,31 +339,51 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
       extendData = text.trim();
     }
     setActiveDrawingTool(name);
-    chart.createOverlay({
+    const overlayId = chart.createOverlay({
       name,
       groupId: DRAWING_GROUP_ID,
       mode: name === 'brush' ? 'normal' : 'weak_magnet',
       extendData,
-      onDrawEnd: () => {
+      onDrawEnd: ({ overlay }) => {
+        activeDrawingIdRef.current = null;
+        if (!drawingHistoryRef.current.includes(overlay.id)) {
+          drawingHistoryRef.current.push(overlay.id);
+        }
         setActiveDrawingTool(null);
         window.setTimeout(persistCurrentDrawings, 0);
       },
       onPressedMoveEnd: () => window.setTimeout(persistCurrentDrawings, 0),
     });
+    activeDrawingIdRef.current = typeof overlayId === 'string' ? overlayId : null;
   }, [persistCurrentDrawings]);
 
   const undoDrawing = useCallback(() => {
     const chart = chartRef.current;
     if (!chart) return;
-    const overlays = chart.getOverlays({ groupId: DRAWING_GROUP_ID });
-    const lastOverlay = overlays[overlays.length - 1];
-    if (!lastOverlay) return;
-    chart.removeOverlay({ id: lastOverlay.id });
-    window.setTimeout(persistCurrentDrawings, 0);
+
+    const activeDrawingId = activeDrawingIdRef.current;
+    if (activeDrawingId) {
+      chart.removeOverlay({ id: activeDrawingId });
+      activeDrawingIdRef.current = null;
+      setActiveDrawingTool(null);
+      persistCurrentDrawings();
+      return;
+    }
+
+    const lastOverlayId = drawingHistoryRef.current.pop();
+    if (!lastOverlayId) return;
+    const removed = chart.removeOverlay({ id: lastOverlayId });
+    if (!removed) {
+      drawingHistoryRef.current.push(lastOverlayId);
+      return;
+    }
+    persistCurrentDrawings();
   }, [persistCurrentDrawings]);
 
   const clearDrawings = useCallback(() => {
     chartRef.current?.removeOverlay({ groupId: DRAWING_GROUP_ID });
+    drawingHistoryRef.current = [];
+    activeDrawingIdRef.current = null;
     clearPersistedOverlays(drawingStorageKey);
     setDrawingCount(0);
     setActiveDrawingTool(null);
@@ -547,7 +574,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
           size="sm"
           className="h-7 shrink-0 px-2 text-xs text-[#98989d] hover:text-white"
           onClick={undoDrawing}
-          disabled={drawingCount === 0}
+          disabled={drawingCount === 0 && activeDrawingTool === null}
         >
           <Undo2 className="mr-1 h-3.5 w-3.5" />
           撤销
