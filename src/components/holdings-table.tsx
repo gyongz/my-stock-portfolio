@@ -18,6 +18,7 @@ interface HoldingsTableProps {
   onDelete: (id: string) => void;
   onSelect: (holding: HoldingWithPnL) => void;
   selectedId?: string;
+  collapsed?: boolean;
 }
 
 export default function HoldingsTable({
@@ -26,6 +27,7 @@ export default function HoldingsTable({
   onDelete,
   onSelect,
   selectedId,
+  collapsed = false,
 }: HoldingsTableProps) {
   if (holdings.length === 0) {
     return (
@@ -33,6 +35,29 @@ export default function HoldingsTable({
         <TrendingUp className="w-12 h-12 mb-3 opacity-30" />
         <p className="text-sm">暂无持仓记录</p>
         <p className="text-xs mt-1">点击上方“添加持仓”开始</p>
+      </div>
+    );
+  }
+
+  // 收起模式：仅显示名称 + 代码，代码换行到名称下方
+  if (collapsed) {
+    return (
+      <div className="divide-y divide-slate-700/30">
+        {holdings.map((h) => {
+          const isUp = h.pnl >= 0;
+          return (
+            <div
+              key={h.id}
+              className={`px-3 py-2.5 cursor-pointer transition-colors hover:bg-slate-700/30 ${
+                selectedId === h.id ? 'bg-slate-700/40' : ''
+              }`}
+              onClick={() => onSelect(h)}
+            >
+              <div className="text-sm font-medium text-slate-200 truncate">{h.name}</div>
+              <div className="text-xs font-mono text-slate-500 mt-0.5">{h.code}</div>
+            </div>
+          );
+        })}
       </div>
     );
   }
