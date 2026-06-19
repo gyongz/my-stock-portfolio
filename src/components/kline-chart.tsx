@@ -400,7 +400,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
         }
       />
 
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-[#38383a]/50 bg-[#2c2c2e]/80 px-4 py-1.5">
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-[#38383a]/50 bg-[#1c1c1e] px-4 py-1.5">
         <span className="mr-1 text-xs text-[#98989d]">画线:</span>
         {overlayTools.map((tool) => {
           const Icon = tool.icon;
@@ -411,8 +411,8 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
               size="sm"
               className={`h-7 px-2 text-xs ${
                 activeDrawingTool === tool.key
-                  ? 'bg-blue-500/15 text-blue-300'
-                  : 'text-slate-400 hover:text-slate-100'
+                  ? 'bg-white/10 text-white'
+                  : 'text-[#98989d] hover:text-white'
               }`}
               onClick={() => startDrawing(tool.key)}
             >
@@ -424,7 +424,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 px-2 text-xs text-slate-400 hover:text-red-300"
+          className="h-7 px-2 text-xs text-[#98989d] hover:text-[#ff453a]"
           onClick={clearDrawings}
         >
           <Eraser className="mr-1 h-3.5 w-3.5" />
@@ -463,7 +463,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
         </span>
       </div>
 
-      <div className="flex flex-col items-stretch gap-2 border-b border-[#38383a]/50 bg-[#2c2c2e]/80 px-4 py-2">
+      <div className="flex flex-col items-stretch gap-2 border-b border-[#38383a]/50 bg-[#1c1c1e] px-4 py-2">
         <div className="flex w-full min-w-0 max-w-full items-center gap-1 overflow-x-auto">
           <span className="mr-1 shrink-0 text-xs text-[#98989d]">主图:</span>
           {mainIndicators.map((indicator) => (
