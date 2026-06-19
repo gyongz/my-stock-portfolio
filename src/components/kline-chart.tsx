@@ -98,12 +98,28 @@ function getPeriodLabel(period: TimePeriod): string {
 export default function KLineChart({ stockCode, stockName, currentPrice }: KLineChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<Chart | null>(null);
+  const dataRef = useRef<KLineChartData[]>([]);
   const [activePeriod, setActivePeriod] = useState<TimePeriod>('day');
   const [mainIndicator, setMainIndicator] = useState<TechnicalIndicator | null>('MA');
   const [subIndicator, setSubIndicator] = useState<TechnicalIndicator | null>('MACD');
   const [activeDrawingTool, setActiveDrawingTool] = useState<string | null>(null);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  // 缓存 K 线数据 —— 只在股票代码或周期变化时重新生成
+  useEffect(() => {
+    dataRef.current = generateMockKLineDataForStock(stockCode, 520, activePeriod) as unknown as KLineChartData[];
+  }, [stockCode, activePeriod]);
+
+  // 用 ref 跟踪最新指标值，initChart 通过 ref 读取而非直接依赖
+  const mainIndicatorRef = useRef(mainIndicator);
+  const subIndicatorRef = useRef(subIndicator);
+  useEffect(() => {
+    mainIndicatorRef.current = mainIndicator;
+  }, [mainIndicator]);
+  useEffect(() => {
+    subIndicatorRef.current = subIndicator;
+  }, [subIndicator]);
 
   const initChart = useCallback(() => {
     if (!containerRef.current) return;
@@ -180,23 +196,24 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
     });
     chart.setPeriod(periodMap[activePeriod]);
 
-    const data = generateMockKLineDataForStock(stockCode, 520, activePeriod);
+    // 使用缓存的数据，不再重新生成
     chart.setDataLoader({
       getBars: ({ callback }) => {
-        callback(data as unknown as KLineChartData[]);
+        callback(dataRef.current);
       },
     });
 
-    if (mainIndicator) {
-      chart.createIndicator(mainIndicator, {
+    // 仅在初始化时添加默认指标（用 ref 避免引入 indicator 依赖）
+    if (mainIndicatorRef.current) {
+      chart.createIndicator(mainIndicatorRef.current, {
         pane: { id: 'candle_pane' },
         isStack: true,
       });
     }
-    if (subIndicator) {
-      chart.createIndicator(subIndicator);
+    if (subIndicatorRef.current) {
+      chart.createIndicator(subIndicatorRef.current);
     }
-  }, [stockCode, activePeriod, mainIndicator, subIndicator]);
+  }, [stockCode, activePeriod]); // 移除 mainIndicator / subIndicator 依赖
 
   const toggleMainIndicator = useCallback((indicator: TechnicalIndicator) => {
     setMainIndicator((current) => (current === indicator ? null : indicator));
@@ -268,6 +285,42 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
     const frame = requestAnimationFrame(() => chartRef.current?.resize());
     return () => cancelAnimationFrame(frame);
   }, [mounted, isFocusMode]);
+
+  // 动态切换主图指标 —— 不销毁图表，仅增删 indicator
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || !mounted) return;
+
+    // 移除主图窗口上所有叠加指标
+    chart.removeIndicator({ paneId: 'candle_pane' });
+
+    // 添加新的主图指标
+    if (mainIndicator) {
+      chart.createIndicator(mainIndicator, {
+        pane: { id: 'candle_pane' },
+        isStack: true,
+      });
+    }
+  }, [mainIndicator, mounted]);
+
+  // 动态切换副图指标 —— 不销毁图表，仅增删 indicator
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || !mounted) return;
+
+    // 只移除副图窗口中的指标（不在 candle_pane 中的）
+    const allIndicators = chart.getIndicators();
+    allIndicators.forEach((indicator) => {
+      if (indicator.paneId !== 'candle_pane') {
+        chart.removeIndicator({ paneId: indicator.paneId });
+      }
+    });
+
+    // 添加新的副图指标
+    if (subIndicator) {
+      chart.createIndicator(subIndicator);
+    }
+  }, [subIndicator, mounted]);
 
   return (
     <div
