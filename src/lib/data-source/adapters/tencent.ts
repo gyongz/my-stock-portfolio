@@ -15,6 +15,13 @@ export function getTencentQuoteUrl(codes: string[]): string {
   return `https://qt.gtimg.cn/q=${tencentCodes}`;
 }
 
+/** 获取腾讯 A 股全量列表 URL */
+export function getTencentStockListUrl(): string {
+  // 腾讯不支持一次获取全量，使用板块批量获取: 沪A + 深A
+  // 实际请求通过后端拼接
+  return '';
+}
+
 /** 获取腾讯历史K线URL */
 export function getTencentKLineUrl(code: string, period: string): string {
   const tencentCode = getTencentCode(code);

@@ -11,15 +11,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import StockSearch from '@/components/stock-search';
 import type { Holding } from '@/lib/types';
-import { STOCK_LIST } from '@/lib/kline-data';
+import type { StockInfo } from '@/lib/data-source/types';
 
 interface HoldingsDialogProps {
   open: boolean;
@@ -61,15 +55,12 @@ export default function HoldingsDialog({
     }
   }, [open, editingHolding]);
 
-  /** 选择股票时自动填充名称和当前价 */
-  const handleCodeSelect = (value: string) => {
-    setCode(value);
-    const stock = STOCK_LIST.find((s) => s.code === value);
-    if (stock) {
-      setName(stock.name);
-      if (!currentPrice) {
-        setCurrentPrice(String(stock.basePrice));
-      }
+  /** 从搜索组件选择股票后自动填充 */
+  const handleStockSelect = (stock: StockInfo) => {
+    setCode(stock.code);
+    setName(stock.name);
+    if (!currentPrice && stock.yesterdayClose && stock.yesterdayClose > 0) {
+      setCurrentPrice(String(stock.yesterdayClose));
     }
   };
 
@@ -124,26 +115,15 @@ export default function HoldingsDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* 股票选择 */}
+          {/* 股票搜索选择（代码或名称） */}
           <div className="space-y-1.5">
-            <Label htmlFor="stock-select" className="text-white/80 text-sm font-medium">
-              股票代码
+            <Label htmlFor="stock-search" className="text-white/80 text-sm font-medium">
+              股票
             </Label>
-            <Select value={code} onValueChange={handleCodeSelect}>
-              <SelectTrigger
-                id="stock-select"
-                className="bg-[#3a3a3c] border-0 text-white rounded-xl h-10 px-3"
-              >
-                <SelectValue placeholder="选择股票或手动输入代码" />
-              </SelectTrigger>
-              <SelectContent className="bg-[#2c2c2e] border-white/[0.08] text-white rounded-xl">
-                {STOCK_LIST.map((stock) => (
-                  <SelectItem key={stock.code} value={stock.code}>
-                    {stock.code} - {stock.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <StockSearch
+              value={code}
+              onSelect={handleStockSelect}
+            />
             {errors.code && <p className="text-xs text-[#ff453a]">{errors.code}</p>}
           </div>
 

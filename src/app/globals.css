@@ -114,3 +114,16 @@ html, body {
 ::selection {
   background-color: rgba(48, 209, 88, 0.3);
 }
+
+/* 用于 shadcn ui 弹出层内列表的滚动条 */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}

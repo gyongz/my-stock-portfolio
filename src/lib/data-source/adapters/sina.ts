@@ -22,6 +22,11 @@ export function getSinaQuoteUrl(codes: string[]): string {
   return `https://hq.sinajs.cn/list=${sinaCodes}`;
 }
 
+/** 获取新浪 A 股全量列表 URL（通过行情中心） */
+export function getSinaStockListUrl(): string {
+  return 'https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeData?page=1&num=5500&sort=symbol&asc=1&node=hs_a&symbol=&_s_r_a=init';
+}
+
 /** 获取新浪日K线URL（通过新浪历史数据接口） */
 export function getSinaKLineUrl(code: string): string {
   const sinaCode = getSinaCode(code);

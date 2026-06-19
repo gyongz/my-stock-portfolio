@@ -1,4 +1,4 @@
-import type { KLineItem, QuoteData } from './types';
+import type { KLineItem, QuoteData, StockInfo } from './types';
 
 /**
  * 解析新浪财经实时行情（hq.sinajs.cn）
@@ -80,6 +80,56 @@ export function parseYahooKLine(json: unknown): KLineItem[] {
       close: close?.[i] ?? 0,
       volume: volume?.[i] ?? 0,
     })).filter((k: KLineItem) => k.close > 0);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * 解析新浪行情中心的 A 股列表 JSON
+ * 新浪格式: [{"code":"600519","symbol":"sh600519","name":"贵州茅台","open":1700,...},...]
+ */
+export function parseSinaStockList(json: unknown): StockInfo[] {
+  try {
+    const list = json as Array<{
+      code?: string;
+      name?: string;
+      open?: string;
+      trade?: string;
+    }>;
+    if (!Array.isArray(list)) return [];
+    return list
+      .filter((item) => item.code && item.name && /^\d{6}$/.test(item.code || ''))
+      .map((item) => ({
+        code: item.code || '',
+        name: item.name || '',
+        open: parseFloat(item.open || '0'),
+        yesterdayClose: parseFloat(item.trade || '0'),
+      } as StockInfo))
+      .filter((s) => s.code && s.name);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * 解析腾讯的 A 股列表
+ * 腾讯格式: v_sz000001="...~平安银行~...", 每只股票一行
+ */
+export function parseTencentStockList(raw: string): StockInfo[] {
+  try {
+    const lines = raw.split('\n').filter(l => l.includes('='));
+    return lines.map(line => {
+      const match = line.match(/"([^"]+)"/);
+      if (!match) return null;
+      const parts = match[1].split('~');
+      const code = parts[2] || '';
+      const name = parts[1] || '';
+      if (!code || !name || !/^\d{6}$/.test(code)) return null;
+      const price = parseFloat(parts[3] || '0');
+      const yesterdayClose = parseFloat(parts[4] || '0');
+      return { code, name, open: yesterdayClose, yesterdayClose: price || yesterdayClose } as StockInfo;
+    }).filter((s): s is StockInfo => s !== null);
   } catch {
     return [];
   }

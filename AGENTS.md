@@ -14,21 +14,36 @@
 ## 目录结构
 ```
 src/
-├── app/                    # 页面路由
+├── app/
 │   ├── layout.tsx          # 根布局
 │   ├── page.tsx            # 主页面（仪表盘）
-│   └── globals.css         # 全局样式
+│   ├── globals.css         # 全局样式
+│   └── api/
+│       └── data-source/    # 多数据源代理路由（行情/K线/股票列表）
+│           └── route.ts
 ├── components/
 │   ├── kline-chart.tsx     # KLineChart 图表组件
-│   ├── holdings-table.tsx  # 持仓列表表格
+│   ├── holdings-table.tsx  # 持仓列表表格（支持收起紧凑视图）
 │   ├── holdings-dialog.tsx # 添加/编辑持仓弹窗
 │   ├── portfolio-summary.tsx # 持仓统计摘要
-│   └── import-export.tsx   # CSV 导入导出
+│   ├── import-export.tsx   # CSV 导入导出
+│   ├── stock-search.tsx    # 股票搜索下拉组件（代码/名称模糊搜索）
+│   └── data-source-selector.tsx # 数据源切换组件
 ├── hooks/
 │   └── use-portfolio.ts    # 持仓状态管理 Hook
 └── lib/
     ├── types.ts            # 类型定义
-    └── kline-data.ts       # K线模拟数据 & 股票列表
+    ├── kline-data.ts       # K线模拟数据 & 内置股票池
+    └── data-source/        # 多数据源系统
+        ├── types.ts        # 数据源类型定义
+        ├── parsers.ts      # 各数据源响应解析器
+        ├── index.ts        # DataSourceManager & useDataSource hook
+        ├── context.tsx     # DataSourceProvider 上下文
+        ├── storage.ts      # 行情缓存
+        └── adapters/       # 数据源适配器
+            ├── sina.ts     # 新浪财经
+            ├── tencent.ts  # 腾讯财经
+            └── yahoo.ts    # Yahoo Finance
 ```
 
 ## 数据流
@@ -51,8 +66,12 @@ src/
 - [x] CSV 导入/导出
 - [x] 模拟行情刷新
 - [x] 响应式设计
+- [x] 多数据源切换（新浪/腾讯/Yahoo/模拟）
+- [x] 全量 A 股股票搜索（代码/名称模糊匹配）
 
 ## 注意事项
-- 图表和行情数据均为模拟生成，仅用于演示
-- 修改 `STOCK_LIST` 在 `src/lib/kline-data.ts` 可调整可选股票池
+- 图表和行情数据支持多数据源（新浪/腾讯/Yahoo/模拟），通过 `src/components/data-source-selector.tsx` 切换
+- 添加持仓时的股票选择已改为搜索下拉模式，从数据源拉取全量 A 股列表（~5500 只），支持代码或名称模糊搜索
+- 内置 `STOCK_LIST` 在 `src/lib/kline-data.ts` 作为降级备用列表
 - 图表样式配置在 `src/components/kline-chart.tsx` 的 `init()` 调用中
+- Apple 暗色风格：背景 `#1c1c1e`，毛玻璃卡片，红涨绿跌

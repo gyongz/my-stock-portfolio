@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parseSinaRealTime, parseTencentRealTime, parseYahooKLine } from '@/lib/data-source/parsers';
-import { getSinaQuoteUrl, getSinaScale } from '@/lib/data-source/adapters/sina';
-import { getTencentQuoteUrl, getTencentKLineUrl } from '@/lib/data-source/adapters/tencent';
+import { parseSinaRealTime, parseTencentRealTime, parseYahooKLine, parseSinaStockList, parseTencentStockList } from '@/lib/data-source/parsers';
+import { getSinaQuoteUrl, getSinaScale, getSinaStockListUrl } from '@/lib/data-source/adapters/sina';
+import { getTencentQuoteUrl, getTencentKLineUrl, getTencentStockListUrl } from '@/lib/data-source/adapters/tencent';
 import { getYahooKLineUrl, getYahooQuoteUrl } from '@/lib/data-source/adapters/yahoo';
 import { generateMockKLineDataForStock } from '@/lib/kline-data';
 import { isMarketDataPersistenceEnabled } from '@/lib/db/client';
 import { loadMarketBars, storeLatestQuotes, storeMarketBars } from '@/lib/data-source/storage';
-import type { KLineItem, QuoteData } from '@/lib/data-source/types';
+import type { KLineItem, QuoteData, StockInfo } from '@/lib/data-source/types';
 import type { TimePeriod } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -84,6 +84,10 @@ async function handleDataSourceRequest({ type, source, code, codes, period, endT
         data: quotes,
         storage: { enabled: isMarketDataPersistenceEnabled(), persisted },
       });
+    }
+    if (type === 'stock-list') {
+      const stocks = await fetchStockList(source);
+      return NextResponse.json({ success: true, data: stocks });
     }
     return NextResponse.json({ success: false, error: 'Unknown type' }, { status: 400 });
   } catch (err) {
@@ -260,6 +264,29 @@ async function fetchQuotes(source: string, codes: string[]): Promise<Record<stri
     }
     default:
       throw new Error(`Unknown source: ${source}`);
+  }
+}
+
+async function fetchStockList(source: string): Promise<StockInfo[]> {
+  switch (source) {
+    case 'sina': {
+      const url = getSinaStockListUrl();
+      const res = await fetch(url, {
+        headers: { 'Referer': 'https://finance.sina.com.cn' },
+      });
+      if (!res.ok) throw new Error(`新浪股票列表请求失败: ${res.status}`);
+      const text = await res.text();
+      const parsed: unknown = JSON.parse(text);
+      const stocks = parseSinaStockList(parsed);
+      if (stocks.length === 0) throw new Error('新浪股票列表返回为空');
+      return stocks;
+    }
+    case 'tencent': {
+      // 腾讯不支持全量查询，退回到新浪源
+      return fetchStockList('sina');
+    }
+    default:
+      throw new Error(`股票列表暂不支持 ${source} 数据源`);
   }
 }
 

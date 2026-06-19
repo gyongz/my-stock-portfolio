@@ -18,6 +18,16 @@ export interface QuoteData {
   yesterdayClose: number;
 }
 
+/** 股票列表中的一只股票 */
+export interface StockInfo {
+  code: string;
+  name: string;
+  /** 开盘价（可选，用于填充当前价） */
+  open?: number;
+  /** 昨收价 */
+  yesterdayClose?: number;
+}
+
 export type PeriodType = 'day' | 'week' | 'month' | '60min' | '30min';
 
 export type DataSourceId = 'mock' | 'sina' | 'tencent' | 'yahoo';
