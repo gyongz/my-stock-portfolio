@@ -69,8 +69,19 @@ function HomeContent() {
   const [activeList, setActiveList] = useState<'holdings' | 'watchlist'>('holdings');
   const [showChart, setShowChart] = useState(true);
   const [sideCollapsed, setSideCollapsed] = useState(false);
+  const [isWideLayout, setIsWideLayout] = useState(false);
   const [marketStatus, setMarketStatus] = useState<'loading' | 'live' | 'fallback'>('loading');
   const [marketError, setMarketError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(min-width: 1280px)');
+    const syncWideLayout = () => setIsWideLayout(mediaQuery.matches);
+    syncWideLayout();
+    mediaQuery.addEventListener('change', syncWideLayout);
+    return () => mediaQuery.removeEventListener('change', syncWideLayout);
+  }, []);
+
+  const isSidePanelCollapsed = sideCollapsed && isWideLayout;
 
   /** 打开添加持仓弹窗 */
   const handleOpenAdd = useCallback(() => {
@@ -266,7 +277,7 @@ function HomeContent() {
         {/* KLine 图表区域 */}
         {showChart && (
           <div className={`bg-[#1c1c1e] relative min-w-0 ${
-            sideCollapsed ? 'xl:flex-1' : 'xl:w-[65%]'
+            isSidePanelCollapsed ? 'xl:flex-1' : 'xl:w-[65%]'
           }`}>
             <KLineChart
               stockCode={displayCode}
@@ -279,16 +290,16 @@ function HomeContent() {
               className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 w-5 h-10 rounded-r-lg flex items-center justify-center
                          bg-[#2c2c2e] text-[#98989d] hover:text-white hover:bg-[#3a3a3c]
                          transition-colors cursor-pointer hidden xl:flex"
-              title={sideCollapsed ? '展开持仓列表' : '收起持仓列表'}
+              title={isSidePanelCollapsed ? '展开持仓列表' : '收起持仓列表'}
             >
-              <ChevronLeft className={`w-3.5 h-3.5 transition-transform ${sideCollapsed ? '' : 'rotate-180'}`} />
+              <ChevronLeft className={`w-3.5 h-3.5 transition-transform ${isSidePanelCollapsed ? '' : 'rotate-180'}`} />
             </button>
           </div>
         )}
 
         {/* 持仓 / 自选列表区域 */}
         <div className={`flex flex-col bg-[#1c1c1e] ${
-          sideCollapsed ? 'xl:w-[180px] w-[180px] shrink-0' : 'xl:flex-1 min-w-0'
+          isSidePanelCollapsed ? 'w-full xl:w-[180px] xl:shrink-0' : 'w-full min-w-0 xl:flex-1'
         }`}>
           <Tabs value={activeList} onValueChange={(value) => setActiveList(value as 'holdings' | 'watchlist')} className="min-h-0 flex-1 gap-0">
             <div className="flex items-center justify-between gap-2 px-4 py-2">
@@ -330,7 +341,7 @@ function HomeContent() {
                 onDelete={removeHolding}
                 onSelect={handleSelectHolding}
                 selectedId={selectedWatchlistItem ? undefined : selectedHolding?.id}
-                collapsed={sideCollapsed}
+                collapsed={isSidePanelCollapsed}
               />
             </TabsContent>
 
@@ -340,11 +351,11 @@ function HomeContent() {
                 onDelete={handleRemoveWatchlist}
                 onSelect={handleSelectWatchlist}
                 selectedCode={selectedHolding ? undefined : selectedWatchlistItem?.code}
-                collapsed={sideCollapsed}
+                collapsed={isSidePanelCollapsed}
               />
             </TabsContent>
 
-            {!sideCollapsed && (
+            {!isSidePanelCollapsed && (
               <div className="border-t border-white/[0.06] px-4 py-2.5 text-center text-[11px] text-[#98989d]">
                 点击股票联动 K 线 · 行情随数据源自动刷新
               </div>
