@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import type { HoldingWithPnL, Holding } from '@/lib/types';
 import {
   Table,
@@ -33,7 +32,7 @@ export default function HoldingsTable({
       <div className="flex flex-col items-center justify-center py-12 text-slate-500">
         <TrendingUp className="w-12 h-12 mb-3 opacity-30" />
         <p className="text-sm">暂无持仓记录</p>
-        <p className="text-xs mt-1">点击上方"添加持仓"开始</p>
+        <p className="text-xs mt-1">点击上方“添加持仓”开始</p>
       </div>
     );
   }

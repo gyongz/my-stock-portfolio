@@ -31,7 +31,24 @@ export interface KLineData {
 export type TimePeriod = '1min' | '5min' | '15min' | '30min' | '60min' | 'day' | 'week' | 'month';
 
 /** 技术指标 */
-export type TechnicalIndicator = 'MA' | 'EMA' | 'MACD' | 'KDJ' | 'RSI' | 'BOLL';
+export type TechnicalIndicator =
+  | 'MA'
+  | 'EMA'
+  | 'SMA'
+  | 'BBI'
+  | 'BOLL'
+  | 'SAR'
+  | 'MACD'
+  | 'KDJ'
+  | 'RSI'
+  | 'VOL'
+  | 'CCI'
+  | 'BIAS'
+  | 'WR'
+  | 'DMI'
+  | 'OBV'
+  | 'ROC'
+  | 'MTM';
 
 /** 时间周期展示名 */
 export const timePeriodLabels: Record<TimePeriod, string> = {
@@ -49,8 +66,19 @@ export const timePeriodLabels: Record<TimePeriod, string> = {
 export const indicatorLabels: Record<TechnicalIndicator, string> = {
   MA: '均线',
   EMA: '指数均线',
+  SMA: '平滑均线',
+  BBI: '多空指标',
   MACD: 'MACD',
   KDJ: 'KDJ',
   RSI: 'RSI',
   BOLL: '布林带',
+  SAR: 'SAR',
+  VOL: '成交量',
+  CCI: 'CCI',
+  BIAS: '乖离率',
+  WR: '威廉指标',
+  DMI: '趋向指标',
+  OBV: '能量潮',
+  ROC: '变动率',
+  MTM: '动量指标',
 };

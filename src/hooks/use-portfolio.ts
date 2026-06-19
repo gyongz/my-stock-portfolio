@@ -48,6 +48,15 @@ function calcPnL(holding: Holding): HoldingWithPnL {
   };
 }
 
+/** 计算相对上一价格快照的当日盈亏 */
+function calculateDailyPnL(holdings: Holding[], prevPrices: Record<string, number>): number {
+  const total = holdings.reduce((sum, item) => {
+    const prev = prevPrices[item.id] ?? item.currentPrice;
+    return sum + (item.currentPrice - prev) * item.quantity;
+  }, 0);
+  return Math.round(total * 100) / 100;
+}
+
 /** 默认示例持仓数据 */
 const DEFAULT_HOLDINGS: Holding[] = [
   { id: generateId(), code: '000333', name: '美的集团', quantity: 500, buyPrice: 58.20, currentPrice: 65.80, updatedAt: new Date().toISOString() },
@@ -76,7 +85,7 @@ export function usePortfolio() {
         prev[h.id] = h.currentPrice * (0.98 + Math.random() * 0.04);
       });
       prevPricesRef.current = prev;
-      calcDailyPnL(DEFAULT_HOLDINGS, prev);
+      setDailyPnL(calculateDailyPnL(DEFAULT_HOLDINGS, prev));
     } else {
       setHoldings(stored);
       const prev: Record<string, number> = {};
@@ -84,18 +93,10 @@ export function usePortfolio() {
         prev[h.id] = h.currentPrice * (0.98 + Math.random() * 0.04);
       });
       prevPricesRef.current = prev;
-      calcDailyPnL(stored, prev);
+      setDailyPnL(calculateDailyPnL(stored, prev));
     }
     setLoaded(true);
   }, []);
-
-  function calcDailyPnL(h: Holding[], prevPrices: Record<string, number>) {
-    const total = h.reduce((sum, item) => {
-      const prev = prevPrices[item.id] ?? item.currentPrice;
-      return sum + (item.currentPrice - prev) * item.quantity;
-    }, 0);
-    setDailyPnL(Math.round(total * 100) / 100);
-  }
 
   // 持有带盈亏计算的数据
   const holdingsWithPnL: HoldingWithPnL[] = holdings.map(calcPnL);

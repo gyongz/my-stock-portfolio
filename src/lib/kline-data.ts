@@ -27,7 +27,7 @@ export function generateMockKLineData(
   count: number,
   timeInterval: TimePeriod = 'day'
 ): KLineData[] {
-  let basePrice = STOCK_LIST[0].basePrice;
+  const basePrice = STOCK_LIST[0].basePrice;
   const data: KLineData[] = [];
   const now = Date.now();
   const intervalMs = getIntervalMs(timeInterval);
@@ -66,7 +66,7 @@ export function generateMockKLineDataForStock(
   timeInterval: TimePeriod = 'day'
 ): KLineData[] {
   const stock = STOCK_LIST.find((s) => s.code === code) || STOCK_LIST[0];
-  let basePrice = stock.basePrice;
+  const basePrice = stock.basePrice;
   const data: KLineData[] = [];
   const now = Date.now();
   const intervalMs = getIntervalMs(timeInterval);
