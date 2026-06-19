@@ -58,7 +58,7 @@ const mainIndicators: { key: TechnicalIndicator; label: string }[] = [
   { key: 'SAR', label: 'SAR' },
 ];
 
-const subIndicators: { key: TechnicalIndicator; label: string }[] = [
+const subIndicatorList: { key: TechnicalIndicator; label: string }[] = [
   { key: RSI_HEAT_INDICATOR, label: 'RSI热力' },
   { key: 'MACD', label: 'MACD' },
   { key: 'KDJ', label: 'KDJ' },
@@ -101,7 +101,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
   const dataRef = useRef<KLineChartData[]>([]);
   const [activePeriod, setActivePeriod] = useState<TimePeriod>('day');
   const [mainIndicator, setMainIndicator] = useState<TechnicalIndicator | null>('MA');
-  const [subIndicator, setSubIndicator] = useState<TechnicalIndicator | null>('MACD');
+  const [subIndicators, setSubIndicators] = useState<TechnicalIndicator[]>(['MACD']);
   const [activeDrawingTool, setActiveDrawingTool] = useState<string | null>(null);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -113,13 +113,13 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
 
   // 用 ref 跟踪最新指标值，initChart 通过 ref 读取而非直接依赖
   const mainIndicatorRef = useRef(mainIndicator);
-  const subIndicatorRef = useRef(subIndicator);
+  const subIndicatorRef = useRef(subIndicators);
   useEffect(() => {
     mainIndicatorRef.current = mainIndicator;
   }, [mainIndicator]);
   useEffect(() => {
-    subIndicatorRef.current = subIndicator;
-  }, [subIndicator]);
+    subIndicatorRef.current = subIndicators;
+  }, [subIndicators]);
 
   const initChart = useCallback(() => {
     if (!containerRef.current) return;
@@ -203,16 +203,17 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
       },
     });
 
-    // 仅在初始化时添加默认指标（用 ref 避免引入 indicator 依赖）
+    // 在初始化时添加默认指标
     if (mainIndicatorRef.current) {
       chart.createIndicator(mainIndicatorRef.current, {
         pane: { id: 'candle_pane' },
         isStack: true,
       });
     }
-    if (subIndicatorRef.current) {
-      chart.createIndicator(subIndicatorRef.current);
-    }
+    // 初始化所有已启用的副图指标
+    (subIndicatorRef.current ?? []).forEach((indicator) => {
+      chart.createIndicator(indicator);
+    });
   }, [stockCode, activePeriod]); // 移除 mainIndicator / subIndicator 依赖
 
   const toggleMainIndicator = useCallback((indicator: TechnicalIndicator) => {
@@ -220,7 +221,9 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
   }, []);
 
   const toggleSubIndicator = useCallback((indicator: TechnicalIndicator) => {
-    setSubIndicator((current) => (current === indicator ? null : indicator));
+    setSubIndicators((current) =>
+      current.includes(indicator) ? current.filter((i) => i !== indicator) : [...current, indicator]
+    );
   }, []);
 
   const startDrawing = useCallback((name: string) => {
@@ -303,12 +306,12 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
     }
   }, [mainIndicator, mounted]);
 
-  // 动态切换副图指标 —— 不销毁图表，仅增删 indicator
+  // 动态同步副图指标 —— 将当前列表与实际图表中的副图指标保持一致
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart || !mounted) return;
 
-    // 只移除副图窗口中的指标（不在 candle_pane 中的）
+    // 1. 移除现有的所有副图指标（不在 candle_pane 中的）
     const allIndicators = chart.getIndicators();
     allIndicators.forEach((indicator) => {
       if (indicator.paneId !== 'candle_pane') {
@@ -316,11 +319,11 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
       }
     });
 
-    // 添加新的副图指标
-    if (subIndicator) {
-      chart.createIndicator(subIndicator);
-    }
-  }, [subIndicator, mounted]);
+    // 2. 重新添加所有已启用的副图指标
+    subIndicators.forEach((indicator) => {
+      chart.createIndicator(indicator);
+    });
+  }, [subIndicators, mounted]);
 
   return (
     <div
@@ -481,12 +484,12 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
 
         <div className="flex w-full min-w-0 max-w-full items-center gap-1 overflow-x-auto">
           <span className="mr-1 shrink-0 text-xs text-slate-400">副图:</span>
-          {subIndicators.map((indicator) => (
+          {subIndicatorList.map((indicator) => (
             <Badge
               key={indicator.key}
-              variant={subIndicator === indicator.key ? 'default' : 'outline'}
+              variant={subIndicators.includes(indicator.key) ? 'default' : 'outline'}
               className={`shrink-0 cursor-pointer px-2 py-0.5 text-xs ${
-                subIndicator === indicator.key
+                subIndicators.includes(indicator.key)
                   ? 'border-violet-500/50 bg-violet-500/20 text-violet-300 hover:bg-violet-500/30'
                   : 'border-slate-600 text-slate-400 hover:text-slate-200'
               }`}
