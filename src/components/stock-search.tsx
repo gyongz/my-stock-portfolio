@@ -30,7 +30,6 @@ export default function StockSearch({ value, onSelect, disabled }: StockSearchPr
   const [open, setOpen] = useState(false);
   const [stocks, setStocks] = useState<StockInfo[]>([]);
   const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const loadedRef = useRef(false);
 
   const selectedStock = stocks.find((s) => s.code === value)
@@ -71,15 +70,6 @@ export default function StockSearch({ value, onSelect, disabled }: StockSearchPr
     }
   }, [open, loadStockList]);
 
-  /** 按代码或名称过滤 */
-  const filteredStocks = searchQuery
-    ? stocks.filter(
-        (s) =>
-          s.code.includes(searchQuery) ||
-          s.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : stocks;
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -115,11 +105,9 @@ export default function StockSearch({ value, onSelect, disabled }: StockSearchPr
         className="w-[--radix-popover-trigger-width] max-h-[min(400px,60vh)] p-0 bg-[#2c2c2e] border-white/[0.08] rounded-xl"
         align="start"
       >
-        <Command shouldFilter={false}>
+        <Command>
           <CommandInput
             placeholder="输入股票代码或名称搜索..."
-            value={searchQuery}
-            onValueChange={setSearchQuery}
             className="border-0 text-white placeholder:text-[#98989d] h-11"
           />
           <CommandList className="max-h-[340px] overflow-y-auto custom-scrollbar">
@@ -128,49 +116,40 @@ export default function StockSearch({ value, onSelect, disabled }: StockSearchPr
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 加载中...
               </div>
-            ) : filteredStocks.length === 0 ? (
-              <CommandEmpty className="py-6 text-center text-[#98989d] text-sm">
-                未找到匹配 "{searchQuery}" 的股票
-              </CommandEmpty>
             ) : (
-              <CommandGroup>
-                {filteredStocks.slice(0, 200).map((stock) => (
-                  <CommandItem
-                    key={stock.code}
-                    value={stock.code}
-                    onSelect={(currentValue) => {
-                      const s = stocks.find((x) => x.code === currentValue)
-                        ?? STOCK_LIST.find((x) => x.code === currentValue);
-                      if (s) onSelect(s);
-                      setOpen(false);
-                      setSearchQuery('');
-                    }}
-                    className="flex items-center gap-3 px-3 py-2.5 text-white cursor-pointer aria-selected:bg-white/[0.08]"
-                  >
-                    <Check
-                      className={cn(
-                        'h-4 w-4 shrink-0 text-[#30d158]',
-                        value === stock.code ? 'opacity-100' : 'opacity-0'
-                      )}
-                    />
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-sm font-medium truncate">{stock.name}</span>
-                      <span className="text-xs text-[#98989d]">{stock.code}</span>
-                    </div>
-                    {stock.yesterdayClose && stock.yesterdayClose > 0 && (
-                      <span className="ml-auto text-xs text-[#98989d] tabular-nums">
-                        {stock.yesterdayClose.toFixed(2)}
-                      </span>
-                    )}
-                  </CommandItem>
-                ))}
-                {filteredStocks.length > 200 && (
-                  <div className="px-3 py-2 text-xs text-center text-[#98989d] border-t border-white/[0.06]">
-                    共 {filteredStocks.length} 只，显示前 200 只
-                  </div>
-                )}
-              </CommandGroup>
+              <CommandEmpty className="py-6 text-center text-[#98989d] text-sm">
+                未找到匹配的股票
+              </CommandEmpty>
             )}
+            <CommandGroup>
+              {stocks.map((stock) => (
+                <CommandItem
+                  key={stock.code}
+                  value={`${stock.code} ${stock.name}`}
+                  onSelect={() => {
+                    onSelect(stock);
+                    setOpen(false);
+                  }}
+                  className="flex items-center gap-3 px-3 py-2.5 text-white cursor-pointer aria-selected:bg-white/[0.08]"
+                >
+                  <Check
+                    className={cn(
+                      'h-4 w-4 shrink-0 text-[#30d158]',
+                      value === stock.code ? 'opacity-100' : 'opacity-0'
+                    )}
+                  />
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-sm font-medium truncate">{stock.name}</span>
+                    <span className="text-xs text-[#98989d]">{stock.code}</span>
+                  </div>
+                  {stock.yesterdayClose && stock.yesterdayClose > 0 && (
+                    <span className="ml-auto text-xs text-[#98989d] tabular-nums">
+                      {stock.yesterdayClose.toFixed(2)}
+                    </span>
+                  )}
+                </CommandItem>
+              ))}
+            </CommandGroup>
           </CommandList>
         </Command>
       </PopoverContent>
