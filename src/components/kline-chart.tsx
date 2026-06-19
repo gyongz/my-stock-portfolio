@@ -2,16 +2,28 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { dispose, init } from 'klinecharts';
-import type { Chart, KLineData as KLineChartData, PeriodType } from 'klinecharts';
+import type { Chart, KLineData as KLineChartData, OverlayCreate, PeriodType } from 'klinecharts';
 import {
+  AlignHorizontalJustifyCenter,
+  AlignVerticalJustifyCenter,
+  ArrowRight,
+  ArrowUpRight,
   Brush,
   Camera,
+  ChartNoAxesCombined,
   Eraser,
+  GitBranch,
+  MessageSquareText,
   Maximize2,
   Minimize2,
   Minus,
+  MoveHorizontal,
+  MoveVertical,
   RotateCcw,
+  Spline,
+  Tag,
   TrendingUp,
+  Undo2,
   Waves,
   ZoomIn,
   ZoomOut,
@@ -26,6 +38,13 @@ import {
 } from '@/lib/custom-indicators';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  clearPersistedOverlays,
+  getDrawingStorageKey,
+  readPersistedOverlays,
+  writePersistedOverlays,
+  type PersistedOverlay,
+} from '@/lib/drawing-storage';
 
 const periodMap: Record<TimePeriod, { type: PeriodType; span: number }> = {
   '1min': { type: 'minute', span: 1 },
@@ -76,8 +95,20 @@ const subIndicatorList: { key: TechnicalIndicator; label: string }[] = [
 
 const overlayTools = [
   { key: 'segment', label: '趋势线', icon: TrendingUp },
+  { key: 'straightLine', label: '直线', icon: Spline },
+  { key: 'rayLine', label: '射线', icon: ArrowUpRight },
   { key: 'horizontalStraightLine', label: '水平线', icon: Minus },
+  { key: 'horizontalRayLine', label: '水平射线', icon: ArrowRight },
+  { key: 'horizontalSegment', label: '水平线段', icon: MoveHorizontal },
+  { key: 'verticalStraightLine', label: '垂直线', icon: AlignVerticalJustifyCenter },
+  { key: 'verticalRayLine', label: '垂直射线', icon: MoveVertical },
+  { key: 'verticalSegment', label: '垂直线段', icon: AlignHorizontalJustifyCenter },
+  { key: 'parallelStraightLine', label: '平行线', icon: GitBranch },
+  { key: 'priceChannelLine', label: '价格通道', icon: ChartNoAxesCombined },
   { key: 'fibonacciLine', label: '斐波那契', icon: Waves },
+  { key: 'priceLine', label: '价格线', icon: Minus },
+  { key: 'simpleAnnotation', label: '文字标注', icon: MessageSquareText, needsText: true },
+  { key: 'simpleTag', label: '价格标签', icon: Tag, needsText: true },
   { key: 'brush', label: '画笔', icon: Brush },
 ] as const;
 
@@ -104,12 +135,14 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
   const [mainIndicator, setMainIndicator] = useState<TechnicalIndicator | null>('MA');
   const [subIndicators, setSubIndicators] = useState<TechnicalIndicator[]>(['MACD']);
   const [activeDrawingTool, setActiveDrawingTool] = useState<string | null>(null);
+  const [drawingCount, setDrawingCount] = useState(0);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [dataLoading, setDataLoading] = useState(false);
   const [dataVersion, setDataVersion] = useState(0);
   const [dataFallback, setDataFallback] = useState(false);
   const { dataSourceId } = useDataSourceContext();
+  const drawingStorageKey = getDrawingStorageKey(stockCode, activePeriod);
 
   // 缓存 K 线数据 —— 优先从数据源获取，失败回退到模拟数据
   useEffect(() => {
@@ -161,6 +194,22 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
   useEffect(() => {
     subIndicatorRef.current = subIndicators;
   }, [subIndicators]);
+
+  const persistCurrentDrawings = useCallback(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    const count = writePersistedOverlays(
+      drawingStorageKey,
+      chart.getOverlays({ groupId: DRAWING_GROUP_ID })
+    );
+    setDrawingCount(count);
+  }, [drawingStorageKey]);
+
+  const buildPersistedOverlay = useCallback((overlay: PersistedOverlay): OverlayCreate => ({
+    ...overlay,
+    groupId: DRAWING_GROUP_ID,
+    onPressedMoveEnd: () => window.setTimeout(persistCurrentDrawings, 0),
+  }), [persistCurrentDrawings]);
 
   const initChart = useCallback(() => {
     if (!containerRef.current) return;
@@ -255,7 +304,13 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
     (subIndicatorRef.current ?? []).forEach((indicator) => {
       chart.createIndicator(indicator);
     });
-  }, [stockCode, activePeriod, dataVersion]); // 数据返回后重新绑定 DataLoader
+
+    const persistedOverlays = readPersistedOverlays(drawingStorageKey);
+    if (persistedOverlays.length > 0) {
+      chart.createOverlay(persistedOverlays.map(buildPersistedOverlay));
+    }
+    setDrawingCount(persistedOverlays.length);
+  }, [stockCode, activePeriod, dataVersion, drawingStorageKey, buildPersistedOverlay]);
 
   const toggleMainIndicator = useCallback((indicator: TechnicalIndicator) => {
     setMainIndicator((current) => (current === indicator ? null : indicator));
@@ -267,22 +322,45 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
     );
   }, []);
 
-  const startDrawing = useCallback((name: string) => {
+  const startDrawing = useCallback((name: string, needsText = false) => {
     const chart = chartRef.current;
     if (!chart) return;
+    let extendData: string | undefined;
+    if (needsText) {
+      const text = window.prompt(name === 'simpleTag' ? '输入价格标签' : '输入图表标注');
+      if (!text?.trim()) return;
+      extendData = text.trim();
+    }
     setActiveDrawingTool(name);
     chart.createOverlay({
       name,
       groupId: DRAWING_GROUP_ID,
       mode: name === 'brush' ? 'normal' : 'weak_magnet',
-      onDrawEnd: () => setActiveDrawingTool(null),
+      extendData,
+      onDrawEnd: () => {
+        setActiveDrawingTool(null);
+        window.setTimeout(persistCurrentDrawings, 0);
+      },
+      onPressedMoveEnd: () => window.setTimeout(persistCurrentDrawings, 0),
     });
-  }, []);
+  }, [persistCurrentDrawings]);
+
+  const undoDrawing = useCallback(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    const overlays = chart.getOverlays({ groupId: DRAWING_GROUP_ID });
+    const lastOverlay = overlays[overlays.length - 1];
+    if (!lastOverlay) return;
+    chart.removeOverlay({ id: lastOverlay.id });
+    window.setTimeout(persistCurrentDrawings, 0);
+  }, [persistCurrentDrawings]);
 
   const clearDrawings = useCallback(() => {
     chartRef.current?.removeOverlay({ groupId: DRAWING_GROUP_ID });
+    clearPersistedOverlays(drawingStorageKey);
+    setDrawingCount(0);
     setActiveDrawingTool(null);
-  }, []);
+  }, [drawingStorageKey]);
 
   const exportChartImage = useCallback(() => {
     const chart = chartRef.current;
@@ -443,8 +521,8 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
         }
       />
 
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-[#38383a]/50 bg-[#1c1c1e] px-4 py-1.5">
-        <span className="mr-1 text-xs text-[#98989d]">画线:</span>
+      <div className="flex w-full max-w-full items-center gap-1.5 overflow-x-auto border-b border-[#38383a]/50 bg-[#1c1c1e] px-4 py-1.5">
+        <span className="mr-1 shrink-0 text-xs text-[#98989d]">画线:</span>
         {overlayTools.map((tool) => {
           const Icon = tool.icon;
           return (
@@ -452,12 +530,12 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
               key={tool.key}
               variant="ghost"
               size="sm"
-              className={`h-7 px-2 text-xs ${
+              className={`h-7 shrink-0 px-2 text-xs ${
                 activeDrawingTool === tool.key
                   ? 'bg-white/10 text-white'
                   : 'text-[#98989d] hover:text-white'
               }`}
-              onClick={() => startDrawing(tool.key)}
+              onClick={() => startDrawing(tool.key, 'needsText' in tool && tool.needsText)}
             >
               <Icon className="mr-1 h-3.5 w-3.5" />
               {tool.label}
@@ -467,13 +545,23 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 px-2 text-xs text-[#98989d] hover:text-[#ff453a]"
+          className="h-7 shrink-0 px-2 text-xs text-[#98989d] hover:text-white"
+          onClick={undoDrawing}
+          disabled={drawingCount === 0}
+        >
+          <Undo2 className="mr-1 h-3.5 w-3.5" />
+          撤销
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 shrink-0 px-2 text-xs text-[#98989d] hover:text-[#ff453a]"
           onClick={clearDrawings}
         >
           <Eraser className="mr-1 h-3.5 w-3.5" />
           清空
         </Button>
-        <div className="mx-1 h-4 w-px bg-[#38383a]" />
+        <div className="mx-1 h-4 w-px shrink-0 bg-[#38383a]" />
         <Button
           variant="ghost"
           size="icon"
@@ -501,8 +589,8 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
           <RotateCcw className="mr-1 h-3.5 w-3.5" />
           回到最新
         </Button>
-        <span className="ml-auto hidden text-[11px] text-[#636366] lg:inline">
-          Shift + ←/→ 平移 · Shift + +/- 缩放
+        <span className="ml-auto shrink-0 text-[11px] text-[#636366]">
+          {drawingCount > 0 ? `已保存 ${drawingCount} 个` : '自动保存'}
         </span>
       </div>
 
