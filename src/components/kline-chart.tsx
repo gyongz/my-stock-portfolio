@@ -18,6 +18,11 @@ import {
 } from 'lucide-react';
 import type { TechnicalIndicator, TimePeriod } from '@/lib/types';
 import { generateMockKLineDataForStock } from '@/lib/kline-data';
+import {
+  EMA_RSI_SIGNAL_INDICATOR,
+  RSI_HEAT_INDICATOR,
+  ensureCustomIndicatorsRegistered,
+} from '@/lib/custom-indicators';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
@@ -44,6 +49,7 @@ const timePeriods: TimePeriod[] = [
 ];
 
 const mainIndicators: { key: TechnicalIndicator; label: string }[] = [
+  { key: EMA_RSI_SIGNAL_INDICATOR, label: 'EMA信号' },
   { key: 'MA', label: '均线' },
   { key: 'EMA', label: 'EMA' },
   { key: 'SMA', label: 'SMA' },
@@ -53,6 +59,7 @@ const mainIndicators: { key: TechnicalIndicator; label: string }[] = [
 ];
 
 const subIndicators: { key: TechnicalIndicator; label: string }[] = [
+  { key: RSI_HEAT_INDICATOR, label: 'RSI热力' },
   { key: 'MACD', label: 'MACD' },
   { key: 'KDJ', label: 'KDJ' },
   { key: 'RSI', label: 'RSI' },
@@ -100,6 +107,8 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
 
   const initChart = useCallback(() => {
     if (!containerRef.current) return;
+
+    ensureCustomIndicatorsRegistered();
 
     if (chartRef.current) {
       dispose(chartRef.current);
@@ -171,7 +180,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
     });
     chart.setPeriod(periodMap[activePeriod]);
 
-    const data = generateMockKLineDataForStock(stockCode, 200, activePeriod);
+    const data = generateMockKLineDataForStock(stockCode, 520, activePeriod);
     chart.setDataLoader({
       getBars: ({ callback }) => {
         callback(data as unknown as KLineChartData[]);

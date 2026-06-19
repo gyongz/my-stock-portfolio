@@ -48,7 +48,9 @@ export type TechnicalIndicator =
   | 'DMI'
   | 'OBV'
   | 'ROC'
-  | 'MTM';
+  | 'MTM'
+  | 'EMA_RSI_SIGNAL'
+  | 'RSI_HEAT';
 
 /** 时间周期展示名 */
 export const timePeriodLabels: Record<TimePeriod, string> = {
@@ -81,4 +83,6 @@ export const indicatorLabels: Record<TechnicalIndicator, string> = {
   OBV: '能量潮',
   ROC: '变动率',
   MTM: '动量指标',
+  EMA_RSI_SIGNAL: 'EMA×4 + RSI信号',
+  RSI_HEAT: 'RSI热力',
 };
