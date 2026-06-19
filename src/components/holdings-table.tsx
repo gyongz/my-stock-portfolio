@@ -39,12 +39,11 @@ export default function HoldingsTable({
     );
   }
 
-  // 收起模式：仅显示名称 + 代码，代码换行到名称下方
+  // 收起模式：左侧名称+代码，右侧现价+涨跌幅
   if (collapsed) {
     return (
       <div className="divide-y divide-slate-700/30">
         {holdings.map((h) => {
-          const isUp = h.pnl >= 0;
           return (
             <div
               key={h.id}
@@ -53,17 +52,20 @@ export default function HoldingsTable({
               }`}
               onClick={() => onSelect(h)}
             >
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-medium text-slate-200 truncate min-w-0 flex-1">{h.name}</div>
-                <div className="flex flex-col items-end">
+              <div className="flex items-start justify-between gap-1">
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-slate-200 truncate">{h.name}</div>
+                  <div className="text-xs font-mono text-slate-500 mt-0.5">{h.code}</div>
+                </div>
+                <div className="flex flex-col items-end shrink-0">
                   <span className="text-sm font-mono text-slate-200 tabular-nums">{h.currentPrice.toFixed(2)}</span>
-                  <span className={`text-xs font-mono tabular-nums leading-tight ${h.dailyChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {h.dailyChange >= 0 ? '+' : ''}{h.dailyChange.toFixed(2)}
-                    <span className="ml-0.5">({h.dailyChangePercent >= 0 ? '+' : ''}{h.dailyChangePercent.toFixed(2)}%)</span>
+                  <span className={`text-xs font-mono tabular-nums leading-tight mt-0.5 ${
+                    h.dailyChangePercent >= 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {h.dailyChangePercent >= 0 ? '+' : ''}{h.dailyChangePercent.toFixed(2)}%
                   </span>
                 </div>
               </div>
-              <div className="text-xs font-mono text-slate-500 mt-0.5">{h.code}</div>
             </div>
           );
         })}
