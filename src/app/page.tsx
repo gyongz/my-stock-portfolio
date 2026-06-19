@@ -142,7 +142,7 @@ export default function Home() {
               title={sideCollapsed ? '展开持仓列表' : '收起持仓列表'}
             >
               <svg
-                className={`w-3.5 h-3.5 transition-transform ${sideCollapsed ? 'rotate-180' : ''}`}
+                className={`w-3.5 h-3.5 transition-transform ${sideCollapsed ? '' : 'rotate-180'}`}
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
