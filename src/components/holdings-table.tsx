@@ -58,7 +58,9 @@ export default function HoldingsTable({
                   <div className="text-xs font-mono text-slate-500 mt-0.5">{h.code}</div>
                 </div>
                 <div className="flex flex-col items-end shrink-0">
-                  <span className="text-sm font-mono text-slate-200 tabular-nums">{h.currentPrice.toFixed(2)}</span>
+                  <span className={`text-sm font-mono tabular-nums ${
+                    h.dailyChangePercent >= 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>{h.currentPrice.toFixed(2)}</span>
                   <span className={`text-xs font-mono tabular-nums leading-tight mt-0.5 ${
                     h.dailyChangePercent >= 0 ? 'text-green-400' : 'text-red-400'
                   }`}>
