@@ -43,6 +43,11 @@ export default function HoldingsTable({
   if (collapsed) {
     return (
       <div className="divide-y divide-slate-700/30">
+        {/* 表头 */}
+        <div className="flex items-start justify-between gap-1 px-3 py-2 text-xs text-slate-500">
+          <span>名称/代码</span>
+          <span>现价/涨跌</span>
+        </div>
         {holdings.map((h) => {
           return (
             <div
