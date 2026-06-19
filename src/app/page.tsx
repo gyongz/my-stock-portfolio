@@ -7,13 +7,17 @@ import { Button } from '@/components/ui/button';
 import { usePortfolio } from '@/hooks/use-portfolio';
 import HoldingsTable from '@/components/holdings-table';
 import HoldingsDialog from '@/components/holdings-dialog';
+import WatchlistDialog from '@/components/watchlist-dialog';
+import WatchlistTable from '@/components/watchlist-table';
 import PortfolioSummary from '@/components/portfolio-summary';
 import ImportExport from '@/components/import-export';
 import DataSourceSelector from '@/components/data-source-selector';
 import { DataSourceProvider, useDataSourceContext } from '@/lib/data-source/context';
-import type { Holding, HoldingWithPnL } from '@/lib/types';
-import type { DataSourceId, QuoteData } from '@/lib/data-source/types';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import type { Holding, HoldingWithPnL, WatchlistItem } from '@/lib/types';
+import type { DataSourceId, QuoteData, StockInfo } from '@/lib/data-source/types';
 import { getStockName, getStockBasePrice } from '@/lib/kline-data';
+import { useWatchlist } from '@/hooks/use-watchlist';
 
 // 动态导入图表组件（避免 SSR 问题）
 const KLineChart = dynamic(() => import('@/components/kline-chart'), {
@@ -48,11 +52,15 @@ function HomeContent() {
     refreshPrices,
     importHoldings,
   } = usePortfolio();
+  const { watchlist, addWatchlistItem, removeWatchlistItem, updateWatchlistQuotes } = useWatchlist();
   const { dataSourceId, setDataSource } = useDataSourceContext();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingHolding, setEditingHolding] = useState<Holding | null>(null);
   const [selectedHolding, setSelectedHolding] = useState<HoldingWithPnL | null>(null);
+  const [selectedWatchlistItem, setSelectedWatchlistItem] = useState<WatchlistItem | null>(null);
+  const [watchlistDialogOpen, setWatchlistDialogOpen] = useState(false);
+  const [activeList, setActiveList] = useState<'holdings' | 'watchlist'>('holdings');
   const [showChart, setShowChart] = useState(true);
   const [sideCollapsed, setSideCollapsed] = useState(false);
   const [marketStatus, setMarketStatus] = useState<'loading' | 'live' | 'fallback'>('loading');
@@ -86,22 +94,47 @@ function HomeContent() {
   const handleSelectHolding = useCallback(
     (holding: HoldingWithPnL) => {
       setSelectedHolding(holding);
+      setSelectedWatchlistItem(null);
     },
     []
   );
+
+  const handleSelectWatchlist = useCallback((item: WatchlistItem) => {
+    setSelectedWatchlistItem(item);
+    setSelectedHolding(null);
+  }, []);
+
+  const handleAddWatchlist = useCallback((stock: StockInfo) => {
+    addWatchlistItem(stock);
+    setActiveList('watchlist');
+  }, [addWatchlistItem]);
+
+  const handleRemoveWatchlist = useCallback((code: string) => {
+    removeWatchlistItem(code);
+    setSelectedWatchlistItem((current) => current?.code === code ? null : current);
+  }, [removeWatchlistItem]);
 
   /** 获取当前选中股票的代码 */
   const selectedHoldingLatest = selectedHolding
     ? holdingsWithPnL.find((holding) => holding.id === selectedHolding.id)
     : undefined;
-  const displayCode = selectedHoldingLatest?.code || holdings[0]?.code || '000333';
-  const displayName = selectedHoldingLatest?.name || getStockName(displayCode);
-  const displayPrice = selectedHoldingLatest?.currentPrice ?? holdings[0]?.currentPrice ?? getStockBasePrice(displayCode);
+  const selectedWatchlistLatest = selectedWatchlistItem
+    ? watchlist.find((item) => item.code === selectedWatchlistItem.code)
+    : undefined;
+  const displayCode = selectedWatchlistLatest?.code || selectedHoldingLatest?.code || holdings[0]?.code || watchlist[0]?.code || '000333';
+  const displayName = selectedWatchlistLatest?.name || selectedHoldingLatest?.name || getStockName(displayCode);
+  const displayPrice = selectedWatchlistLatest?.currentPrice
+    ?? selectedHoldingLatest?.currentPrice
+    ?? holdings[0]?.currentPrice
+    ?? watchlist[0]?.currentPrice
+    ?? getStockBasePrice(displayCode);
   const holdingCodes = holdings.map((holding) => holding.code).join(',');
+  const watchlistCodes = watchlist.map((item) => item.code).join(',');
+  const marketCodes = [...new Set([...holdingCodes.split(','), ...watchlistCodes.split(',')].filter(Boolean))].join(',');
 
   /** 带数据源刷新的行情更新 */
   const handleRefresh = useCallback(async () => {
-    if (!holdingCodes) return;
+    if (!marketCodes) return;
     if (dataSourceId === 'mock') {
       refreshPrices();
       setMarketStatus('fallback');
@@ -110,7 +143,7 @@ function HomeContent() {
     setMarketStatus('loading');
     setMarketError(null);
     try {
-      const params = new URLSearchParams({ type: 'quote', source: dataSourceId, codes: holdingCodes });
+      const params = new URLSearchParams({ type: 'quote', source: dataSourceId, codes: marketCodes });
       const res = await fetch(`/api/data-source?${params.toString()}`, { cache: 'no-store' });
       const result = await res.json() as {
         success: boolean;
@@ -125,6 +158,7 @@ function HomeContent() {
       );
       if (Object.keys(prices).length === 0) throw new Error('行情源未返回有效价格');
       refreshPrices(prices);
+      updateWatchlistQuotes(result.data);
       setMarketStatus('live');
       return;
     } catch (error) {
@@ -132,7 +166,7 @@ function HomeContent() {
       setMarketStatus('fallback');
     }
     refreshPrices();
-  }, [dataSourceId, holdingCodes, refreshPrices]);
+  }, [dataSourceId, marketCodes, refreshPrices, updateWatchlistQuotes]);
 
   useEffect(() => {
     void handleRefresh();
@@ -223,43 +257,70 @@ function HomeContent() {
           </div>
         )}
 
-        {/* 持仓列表区域 */}
+        {/* 持仓 / 自选列表区域 */}
         <div className={`flex flex-col bg-[#1c1c1e] ${
           sideCollapsed ? 'xl:w-[180px] w-[180px] shrink-0' : 'xl:flex-1 min-w-0'
         }`}>
-          <div className="flex items-center justify-between px-4 py-2.5">
-            <h3 className="text-[13px] font-medium text-white/70 tracking-tight">
-              持仓
-              <span className="text-[11px] text-[#98989d] ml-1.5">
-                {holdings.length} 只
-              </span>
-            </h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs text-[#98989d] hover:text-white h-7 xl:hidden"
-              onClick={() => setShowChart(!showChart)}
-            >
-              {showChart ? '隐藏图表' : '显示图表'}
-            </Button>
-          </div>
-          <div className="flex-1 overflow-auto">
-            <HoldingsTable
-              holdings={holdingsWithPnL}
-              onEdit={handleOpenEdit}
-              onDelete={removeHolding}
-              onSelect={handleSelectHolding}
-              selectedId={selectedHolding?.id}
-              collapsed={sideCollapsed}
-            />
-          </div>
-
-          {/* 底部操作提示 */}
-          {holdings.length > 0 && !sideCollapsed && (
-            <div className="px-4 py-2.5 text-[11px] text-[#98989d] text-center border-t border-white/[0.06]">
-              点击持仓查看 K 线 · 支持缩放平移 · 周期和指标可切换
+          <Tabs value={activeList} onValueChange={(value) => setActiveList(value as 'holdings' | 'watchlist')} className="min-h-0 flex-1 gap-0">
+            <div className="flex items-center justify-between gap-2 px-4 py-2">
+              <TabsList className="h-8 bg-white/[0.05] p-0.5">
+                <TabsTrigger value="holdings" className="h-7 px-2.5 text-xs data-[state=active]:bg-white/[0.08]">
+                  持仓 <span className="text-[10px] text-[#98989d]">{holdings.length}</span>
+                </TabsTrigger>
+                <TabsTrigger value="watchlist" className="h-7 px-2.5 text-xs data-[state=active]:bg-white/[0.08]">
+                  自选 <span className="text-[10px] text-[#98989d]">{watchlist.length}</span>
+                </TabsTrigger>
+              </TabsList>
+              <div className="flex items-center gap-1">
+                {activeList === 'watchlist' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setWatchlistDialogOpen(true)}
+                    className="h-7 px-2 text-xs text-[#30d158] hover:bg-[#30d158]/10 hover:text-[#30d158]"
+                  >
+                    <Plus className="mr-1 h-3.5 w-3.5" />
+                    添加自选
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-[#98989d] hover:text-white xl:hidden"
+                  onClick={() => setShowChart(!showChart)}
+                >
+                  {showChart ? '隐藏图表' : '显示图表'}
+                </Button>
+              </div>
             </div>
-          )}
+
+            <TabsContent value="holdings" className="mt-0 min-h-0 flex-1 overflow-auto">
+              <HoldingsTable
+                holdings={holdingsWithPnL}
+                onEdit={handleOpenEdit}
+                onDelete={removeHolding}
+                onSelect={handleSelectHolding}
+                selectedId={selectedWatchlistItem ? undefined : selectedHolding?.id}
+                collapsed={sideCollapsed}
+              />
+            </TabsContent>
+
+            <TabsContent value="watchlist" className="mt-0 min-h-0 flex-1 overflow-auto">
+              <WatchlistTable
+                items={watchlist}
+                onDelete={handleRemoveWatchlist}
+                onSelect={handleSelectWatchlist}
+                selectedCode={selectedHolding ? undefined : selectedWatchlistItem?.code}
+                collapsed={sideCollapsed}
+              />
+            </TabsContent>
+
+            {!sideCollapsed && (
+              <div className="border-t border-white/[0.06] px-4 py-2.5 text-center text-[11px] text-[#98989d]">
+                点击股票联动 K 线 · 行情随数据源自动刷新
+              </div>
+            )}
+          </Tabs>
         </div>
       </div>
 
@@ -269,6 +330,11 @@ function HomeContent() {
         onOpenChange={setDialogOpen}
         onSubmit={handleSubmit}
         editingHolding={editingHolding}
+      />
+      <WatchlistDialog
+        open={watchlistDialogOpen}
+        onOpenChange={setWatchlistDialogOpen}
+        onSubmit={handleAddWatchlist}
       />
     </div>
   );

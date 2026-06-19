@@ -25,12 +25,15 @@ src/
 │   ├── kline-chart.tsx     # KLineChart 图表组件
 │   ├── holdings-table.tsx  # 持仓列表表格（支持收起紧凑视图）
 │   ├── holdings-dialog.tsx # 添加/编辑持仓弹窗
+│   ├── watchlist-table.tsx # 自选股票表格
+│   ├── watchlist-dialog.tsx # 添加自选弹窗
 │   ├── portfolio-summary.tsx # 持仓统计摘要
 │   ├── import-export.tsx   # CSV 导入导出
 │   ├── stock-search.tsx    # 股票搜索下拉组件（代码/名称模糊搜索）
 │   └── data-source-selector.tsx # 数据源切换组件
 ├── hooks/
-│   └── use-portfolio.ts    # 持仓状态管理 Hook
+│   ├── use-portfolio.ts    # 持仓状态管理 Hook
+│   └── use-watchlist.ts    # 自选状态管理 Hook
 └── lib/
     ├── types.ts            # 类型定义
     ├── kline-data.ts       # K线模拟数据 & 内置股票池
@@ -48,6 +51,7 @@ src/
 
 ## 数据流
 - 持仓数据存储在 localStorage，通过 `usePortfolio` hook 管理
+- 自选数据存储在 localStorage，通过 `useWatchlist` hook 管理
 - 模拟行情数据通过 `generateMockKLineDataForStock` 生成
 - 持仓盈亏实时计算（成本价 vs 当前价）
 
@@ -68,6 +72,7 @@ src/
 - [x] 响应式设计
 - [x] 多数据源切换（新浪/腾讯/Yahoo/模拟）
 - [x] 全量 A 股股票搜索（代码/名称模糊匹配）
+- [x] 自选股票表（实时行情、K线联动、添加/删除）
 
 ## 注意事项
 - 图表和行情数据支持多数据源（新浪/腾讯/Yahoo/模拟），通过 `src/components/data-source-selector.tsx` 切换

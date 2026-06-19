@@ -19,6 +19,16 @@ export interface HoldingWithPnL extends Holding {
   dailyChangePercent: number; // 当日涨跌幅百分比
 }
 
+/** 自选股票 */
+export interface WatchlistItem {
+  code: string;
+  name: string;
+  currentPrice: number;
+  change: number;
+  changePercent: number;
+  updatedAt: string;
+}
+
 /** KLine 数据点 */
 export interface KLineData {
   timestamp: number;
