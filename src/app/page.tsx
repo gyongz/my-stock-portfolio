@@ -198,19 +198,19 @@ function HomeContent() {
     <div className="min-h-screen bg-[#1c1c1e] flex flex-col">
       {/* 顶栏 - Apple 风格 */}
       <header className="bg-[#1c1c1e]/80 backdrop-blur-xl sticky top-0 z-10 border-b border-white/[0.06]">
-        <div className="flex items-center justify-between px-5 h-11">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-[#30d158]/10 flex items-center justify-center">
+        <div className="flex h-11 items-center justify-between gap-2 px-3 sm:px-5">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <div className="flex shrink-0 items-center gap-2">
+              <div className="w-7 h-7 shrink-0 rounded-lg bg-[#30d158]/10 flex items-center justify-center">
                 <LayoutDashboard className="w-4 h-4 text-[#30d158]" />
               </div>
               <h1 className="text-[15px] font-semibold text-white tracking-tight hidden sm:block">
                 个人持仓
               </h1>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex min-w-0 items-center gap-1.5">
               <span
-                className={`text-[11px] px-2 py-0.5 rounded-md ${
+                className={`hidden whitespace-nowrap text-[11px] px-2 py-0.5 rounded-md sm:inline-flex ${
                   marketStatus === 'live' ? 'bg-[#30d158]/10 text-[#30d158]' : 'bg-white/[0.06] text-[#98989d]'
                 }`}
                 title={marketError || undefined}
@@ -224,7 +224,7 @@ function HomeContent() {
               />
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <ImportExport holdings={holdings} onImport={importHoldings} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

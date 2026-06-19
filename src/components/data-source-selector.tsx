@@ -70,17 +70,17 @@ export default function DataSourceSelector({ currentSource, onSourceChange, comp
 
   // 完整模式（下拉列表）
   return (
-    <div className="relative" ref={ref} onBlur={handleBlur}>
+    <div className="relative min-w-0" ref={ref} onBlur={handleBlur}>
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-3 py-2 rounded-xl
+        className="flex max-w-full items-center gap-1.5 whitespace-nowrap px-2 py-2 rounded-xl sm:gap-2 sm:px-3
                    bg-[#2c2c2e] hover:bg-[#3a3a3c] transition-colors duration-150
                    text-sm text-white"
       >
-        <Database size={14} />
-        {current.name}
-        <span className="text-[#98989d] text-xs ml-1">{current.description}</span>
-        <ChevronDown size={14} className={`text-[#98989d] transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
+        <Database size={14} className="shrink-0" />
+        <span className="truncate">{current.name}</span>
+        <span className="ml-1 hidden text-xs text-[#98989d] lg:inline">{current.description}</span>
+        <ChevronDown size={14} className={`shrink-0 text-[#98989d] transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (

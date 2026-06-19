@@ -94,24 +94,26 @@ export default function ImportExport({ holdings, onImport }: ImportExportProps) 
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1 sm:gap-2">
       <Button
         variant="ghost"
         size="sm"
         onClick={handleExport}
-        className="text-[#98989d] hover:text-white hover:bg-white/[0.08] h-8 rounded-lg"
+        aria-label="导出持仓"
+        className="h-8 w-8 rounded-lg p-0 text-[#98989d] hover:bg-white/[0.08] hover:text-white sm:w-auto sm:px-2.5"
       >
-        <Download className="w-3.5 h-3.5 mr-1" />
-        导出
+        <Download className="w-3.5 h-3.5 sm:mr-1" />
+        <span className="hidden sm:inline">导出</span>
       </Button>
       <Button
         variant="ghost"
         size="sm"
         onClick={handleImport}
-        className="text-[#98989d] hover:text-white hover:bg-white/[0.08] h-8 rounded-lg"
+        aria-label="导入持仓"
+        className="h-8 w-8 rounded-lg p-0 text-[#98989d] hover:bg-white/[0.08] hover:text-white sm:w-auto sm:px-2.5"
       >
-        <Upload className="w-3.5 h-3.5 mr-1" />
-        导入
+        <Upload className="w-3.5 h-3.5 sm:mr-1" />
+        <span className="hidden sm:inline">导入</span>
       </Button>
       <input
         ref={fileInputRef}
