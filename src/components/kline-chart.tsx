@@ -23,6 +23,7 @@ import {
   Spline,
   Tag,
   TrendingUp,
+  Redo2,
   Undo2,
   Waves,
   ZoomIn,
@@ -39,10 +40,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  clearPersistedOverlays,
   getDrawingStorageKey,
   readPersistedOverlays,
-  writePersistedOverlays,
+  snapshotOverlays,
+  writePersistedSnapshot,
   type PersistedOverlay,
 } from '@/lib/drawing-storage';
 
@@ -131,13 +132,17 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<Chart | null>(null);
   const dataRef = useRef<KLineChartData[]>([]);
-  const drawingHistoryRef = useRef<string[]>([]);
   const activeDrawingIdRef = useRef<string | null>(null);
+  const committedSnapshotRef = useRef<PersistedOverlay[]>([]);
+  const undoStackRef = useRef<PersistedOverlay[][]>([]);
+  const redoStackRef = useRef<PersistedOverlay[][]>([]);
   const [activePeriod, setActivePeriod] = useState<TimePeriod>('day');
   const [mainIndicator, setMainIndicator] = useState<TechnicalIndicator | null>('MA');
   const [subIndicators, setSubIndicators] = useState<TechnicalIndicator[]>(['MACD']);
   const [activeDrawingTool, setActiveDrawingTool] = useState<string | null>(null);
   const [drawingCount, setDrawingCount] = useState(0);
+  const [canUndoDrawing, setCanUndoDrawing] = useState(false);
+  const [canRedoDrawing, setCanRedoDrawing] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [dataLoading, setDataLoading] = useState(false);
@@ -197,21 +202,51 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
     subIndicatorRef.current = subIndicators;
   }, [subIndicators]);
 
-  const persistCurrentDrawings = useCallback(() => {
+  const getCurrentDrawingSnapshot = useCallback((): PersistedOverlay[] => {
     const chart = chartRef.current;
-    if (!chart) return;
-    const count = writePersistedOverlays(
-      drawingStorageKey,
-      chart.getOverlays({ groupId: DRAWING_GROUP_ID })
-    );
-    setDrawingCount(count);
-  }, [drawingStorageKey]);
+    return chart
+      ? snapshotOverlays(chart.getOverlays({ groupId: DRAWING_GROUP_ID }))
+      : [];
+  }, []);
+
+  const syncHistoryControls = useCallback(() => {
+    setCanUndoDrawing(undoStackRef.current.length > 0);
+    setCanRedoDrawing(redoStackRef.current.length > 0);
+  }, []);
+
+  const commitDrawingState = useCallback(() => {
+    const nextSnapshot = getCurrentDrawingSnapshot();
+    const previousSnapshot = committedSnapshotRef.current;
+    if (JSON.stringify(nextSnapshot) === JSON.stringify(previousSnapshot)) return;
+
+    undoStackRef.current.push(previousSnapshot);
+    if (undoStackRef.current.length > 50) undoStackRef.current.shift();
+    redoStackRef.current = [];
+    committedSnapshotRef.current = nextSnapshot;
+    writePersistedSnapshot(drawingStorageKey, nextSnapshot);
+    setDrawingCount(nextSnapshot.length);
+    syncHistoryControls();
+  }, [drawingStorageKey, getCurrentDrawingSnapshot, syncHistoryControls]);
 
   const buildPersistedOverlay = useCallback((overlay: PersistedOverlay): OverlayCreate => ({
     ...overlay,
     groupId: DRAWING_GROUP_ID,
-    onPressedMoveEnd: () => window.setTimeout(persistCurrentDrawings, 0),
-  }), [persistCurrentDrawings]);
+    onPressedMoveEnd: () => window.setTimeout(commitDrawingState, 0),
+  }), [commitDrawingState]);
+
+  const applyDrawingSnapshot = useCallback((snapshot: PersistedOverlay[]) => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    chart.removeOverlay({ groupId: DRAWING_GROUP_ID });
+    if (snapshot.length > 0) {
+      chart.createOverlay(snapshot.map(buildPersistedOverlay));
+    }
+    activeDrawingIdRef.current = null;
+    committedSnapshotRef.current = snapshot;
+    writePersistedSnapshot(drawingStorageKey, snapshot);
+    setDrawingCount(snapshot.length);
+    setActiveDrawingTool(null);
+  }, [buildPersistedOverlay, drawingStorageKey]);
 
   const initChart = useCallback(() => {
     if (!containerRef.current) return;
@@ -308,16 +343,16 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
     });
 
     const persistedOverlays = readPersistedOverlays(drawingStorageKey);
-    drawingHistoryRef.current = [];
     activeDrawingIdRef.current = null;
+    committedSnapshotRef.current = persistedOverlays;
+    undoStackRef.current = [];
+    redoStackRef.current = [];
     if (persistedOverlays.length > 0) {
-      const restoredIds = chart.createOverlay(persistedOverlays.map(buildPersistedOverlay));
-      drawingHistoryRef.current = Array.isArray(restoredIds)
-        ? restoredIds.filter((id): id is string => typeof id === 'string')
-        : [];
+      chart.createOverlay(persistedOverlays.map(buildPersistedOverlay));
     }
-    setDrawingCount(drawingHistoryRef.current.length);
-  }, [stockCode, activePeriod, dataVersion, drawingStorageKey, buildPersistedOverlay]);
+    setDrawingCount(persistedOverlays.length);
+    syncHistoryControls();
+  }, [stockCode, activePeriod, dataVersion, drawingStorageKey, buildPersistedOverlay, syncHistoryControls]);
 
   const toggleMainIndicator = useCallback((indicator: TechnicalIndicator) => {
     setMainIndicator((current) => (current === indicator ? null : indicator));
@@ -344,18 +379,15 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
       groupId: DRAWING_GROUP_ID,
       mode: name === 'brush' ? 'normal' : 'weak_magnet',
       extendData,
-      onDrawEnd: ({ overlay }) => {
+      onDrawEnd: () => {
         activeDrawingIdRef.current = null;
-        if (!drawingHistoryRef.current.includes(overlay.id)) {
-          drawingHistoryRef.current.push(overlay.id);
-        }
         setActiveDrawingTool(null);
-        window.setTimeout(persistCurrentDrawings, 0);
+        window.setTimeout(commitDrawingState, 0);
       },
-      onPressedMoveEnd: () => window.setTimeout(persistCurrentDrawings, 0),
+      onPressedMoveEnd: () => window.setTimeout(commitDrawingState, 0),
     });
     activeDrawingIdRef.current = typeof overlayId === 'string' ? overlayId : null;
-  }, [persistCurrentDrawings]);
+  }, [commitDrawingState]);
 
   const undoDrawing = useCallback(() => {
     const chart = chartRef.current;
@@ -366,28 +398,32 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
       chart.removeOverlay({ id: activeDrawingId });
       activeDrawingIdRef.current = null;
       setActiveDrawingTool(null);
-      persistCurrentDrawings();
       return;
     }
 
-    const lastOverlayId = drawingHistoryRef.current.pop();
-    if (!lastOverlayId) return;
-    const removed = chart.removeOverlay({ id: lastOverlayId });
-    if (!removed) {
-      drawingHistoryRef.current.push(lastOverlayId);
-      return;
-    }
-    persistCurrentDrawings();
-  }, [persistCurrentDrawings]);
+    const previousSnapshot = undoStackRef.current.pop();
+    if (!previousSnapshot) return;
+    redoStackRef.current.push(committedSnapshotRef.current);
+    applyDrawingSnapshot(previousSnapshot);
+    syncHistoryControls();
+  }, [applyDrawingSnapshot, syncHistoryControls]);
+
+  const redoDrawing = useCallback(() => {
+    const nextSnapshot = redoStackRef.current.pop();
+    if (!nextSnapshot) return;
+    undoStackRef.current.push(committedSnapshotRef.current);
+    applyDrawingSnapshot(nextSnapshot);
+    syncHistoryControls();
+  }, [applyDrawingSnapshot, syncHistoryControls]);
 
   const clearDrawings = useCallback(() => {
-    chartRef.current?.removeOverlay({ groupId: DRAWING_GROUP_ID });
-    drawingHistoryRef.current = [];
+    const chart = chartRef.current;
+    if (!chart) return;
+    chart.removeOverlay({ groupId: DRAWING_GROUP_ID });
     activeDrawingIdRef.current = null;
-    clearPersistedOverlays(drawingStorageKey);
-    setDrawingCount(0);
     setActiveDrawingTool(null);
-  }, [drawingStorageKey]);
+    commitDrawingState();
+  }, [commitDrawingState]);
 
   const exportChartImage = useCallback(() => {
     const chart = chartRef.current;
@@ -574,10 +610,20 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
           size="sm"
           className="h-7 shrink-0 px-2 text-xs text-[#98989d] hover:text-white"
           onClick={undoDrawing}
-          disabled={drawingCount === 0 && activeDrawingTool === null}
+          disabled={!canUndoDrawing && activeDrawingTool === null}
         >
           <Undo2 className="mr-1 h-3.5 w-3.5" />
           撤销
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 shrink-0 px-2 text-xs text-[#98989d] hover:text-white"
+          onClick={redoDrawing}
+          disabled={!canRedoDrawing}
+        >
+          <Redo2 className="mr-1 h-3.5 w-3.5" />
+          恢复
         </Button>
         <Button
           variant="ghost"

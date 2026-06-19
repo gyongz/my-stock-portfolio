@@ -27,7 +27,11 @@ export function readPersistedOverlays(storageKey: string): PersistedOverlay[] {
 }
 
 export function writePersistedOverlays(storageKey: string, overlays: Overlay[]): number {
-  if (typeof window === 'undefined') return 0;
+  const persisted = snapshotOverlays(overlays);
+  return writePersistedSnapshot(storageKey, persisted);
+}
+
+export function snapshotOverlays(overlays: Overlay[]): PersistedOverlay[] {
   const persisted: PersistedOverlay[] = overlays.map((overlay) => ({
     name: overlay.name,
     points: overlay.points,
@@ -37,8 +41,13 @@ export function writePersistedOverlays(storageKey: string, overlays: Overlay[]):
     lock: overlay.lock,
     visible: overlay.visible,
   }));
-  localStorage.setItem(storageKey, JSON.stringify(persisted));
-  return persisted.length;
+  return JSON.parse(JSON.stringify(persisted)) as PersistedOverlay[];
+}
+
+export function writePersistedSnapshot(storageKey: string, snapshot: PersistedOverlay[]): number {
+  if (typeof window === 'undefined') return 0;
+  localStorage.setItem(storageKey, JSON.stringify(snapshot));
+  return snapshot.length;
 }
 
 export function clearPersistedOverlays(storageKey: string): void {
