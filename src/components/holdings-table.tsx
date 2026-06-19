@@ -53,7 +53,10 @@ export default function HoldingsTable({
               }`}
               onClick={() => onSelect(h)}
             >
-              <div className="text-sm font-medium text-slate-200 truncate">{h.name}</div>
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-medium text-slate-200 truncate min-w-0 flex-1">{h.name}</div>
+                <span className="text-sm font-mono text-slate-200 ml-2 tabular-nums">{h.currentPrice.toFixed(2)}</span>
+              </div>
               <div className="text-xs font-mono text-slate-500 mt-0.5">{h.code}</div>
             </div>
           );
