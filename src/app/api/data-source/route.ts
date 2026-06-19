@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseSinaRealTime, parseTencentRealTime, parseYahooKLine, parseSinaStockList, parseTencentStockList } from '@/lib/data-source/parsers';
-import { getSinaQuoteUrl, getSinaScale, getSinaStockListUrl } from '@/lib/data-source/adapters/sina';
+import { getSinaQuoteUrl, getSinaScale, getSinaStockListUrl, SINA_STOCK_LIST_TOTAL_PAGES } from '@/lib/data-source/adapters/sina';
 import { getTencentQuoteUrl, getTencentKLineUrl, getTencentStockListUrl } from '@/lib/data-source/adapters/tencent';
 import { getYahooKLineUrl, getYahooQuoteUrl } from '@/lib/data-source/adapters/yahoo';
 import { generateMockKLineDataForStock } from '@/lib/kline-data';
@@ -270,16 +270,38 @@ async function fetchQuotes(source: string, codes: string[]): Promise<Record<stri
 async function fetchStockList(source: string): Promise<StockInfo[]> {
   switch (source) {
     case 'sina': {
-      const url = getSinaStockListUrl();
-      const res = await fetch(url, {
-        headers: { 'Referer': 'https://finance.sina.com.cn' },
-      });
-      if (!res.ok) throw new Error(`新浪股票列表请求失败: ${res.status}`);
-      const text = await res.text();
-      const parsed: unknown = JSON.parse(text);
-      const stocks = parseSinaStockList(parsed);
-      if (stocks.length === 0) throw new Error('新浪股票列表返回为空');
-      return stocks;
+      // 并行拉取所有分页（新浪每页最多 100 条），总页数约 56 页
+      const pageNumbers = Array.from({ length: SINA_STOCK_LIST_TOTAL_PAGES }, (_, i) => i + 1);
+      const results = await Promise.allSettled(
+        pageNumbers.map((page) =>
+          fetch(getSinaStockListUrl(page), {
+            headers: { 'Referer': 'https://finance.sina.com.cn' },
+          }).then(async (res) => {
+            if (!res.ok) return [] as StockInfo[];
+            const text = await res.text();
+            const parsed: unknown = JSON.parse(text);
+            return parseSinaStockList(parsed);
+          }).catch(() => [] as StockInfo[])
+        )
+      );
+
+      const allStocks: StockInfo[] = [];
+      const seen = new Set<string>();
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          for (const stock of result.value) {
+            if (!seen.has(stock.code)) {
+              seen.add(stock.code);
+              allStocks.push(stock);
+            }
+          }
+        }
+      }
+
+      allStocks.sort((a, b) => a.code.localeCompare(b.code));
+
+      if (allStocks.length === 0) throw new Error('新浪股票列表返回为空');
+      return allStocks;
     }
     case 'tencent': {
       // 腾讯不支持全量查询，退回到新浪源
