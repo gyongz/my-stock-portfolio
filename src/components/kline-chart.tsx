@@ -305,8 +305,8 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-slate-700/50 px-4 py-2">
-        <div className="flex max-w-full items-center gap-1 overflow-x-auto">
+      <div className="border-b border-slate-700/50 px-4 py-2">
+        <div className="flex w-full max-w-full items-center gap-1 overflow-x-auto">
           <span className="mr-1 text-xs text-slate-400">周期:</span>
           {timePeriods.map((period) => (
             <Button
@@ -324,43 +324,16 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
             </Button>
           ))}
         </div>
-
-        <div className="flex min-w-0 max-w-full items-center gap-1 overflow-x-auto">
-          <span className="mr-1 shrink-0 text-xs text-slate-400">主图:</span>
-          {mainIndicators.map((indicator) => (
-            <Badge
-              key={indicator.key}
-              variant={mainIndicator === indicator.key ? 'default' : 'outline'}
-              className={`shrink-0 cursor-pointer px-2 py-0.5 text-xs ${
-                mainIndicator === indicator.key
-                  ? 'border-blue-600/50 bg-blue-600/20 text-blue-400 hover:bg-blue-600/30'
-                  : 'border-slate-600 text-slate-400 hover:text-slate-200'
-              }`}
-              onClick={() => toggleMainIndicator(indicator.key)}
-            >
-              {indicator.label}
-            </Badge>
-          ))}
-        </div>
-
-        <div className="flex min-w-0 max-w-full items-center gap-1 overflow-x-auto">
-          <span className="mr-1 shrink-0 text-xs text-slate-400">副图:</span>
-          {subIndicators.map((indicator) => (
-            <Badge
-              key={indicator.key}
-              variant={subIndicator === indicator.key ? 'default' : 'outline'}
-              className={`shrink-0 cursor-pointer px-2 py-0.5 text-xs ${
-                subIndicator === indicator.key
-                  ? 'border-violet-500/50 bg-violet-500/20 text-violet-300 hover:bg-violet-500/30'
-                  : 'border-slate-600 text-slate-400 hover:text-slate-200'
-              }`}
-              onClick={() => toggleSubIndicator(indicator.key)}
-            >
-              {indicator.label}
-            </Badge>
-          ))}
-        </div>
       </div>
+
+      <div
+        ref={containerRef}
+        className={
+          isFocusMode
+            ? 'min-h-0 w-full flex-1'
+            : 'h-[400px] w-full xl:h-auto xl:min-h-[400px] xl:flex-1'
+        }
+      />
 
       <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-700/50 bg-slate-900/70 px-4 py-1.5">
         <span className="mr-1 text-xs text-slate-500">画线:</span>
@@ -425,14 +398,44 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
         </span>
       </div>
 
-      <div
-        ref={containerRef}
-        className={
-          isFocusMode
-            ? 'min-h-0 w-full flex-1'
-            : 'h-[400px] w-full xl:h-auto xl:min-h-[400px] xl:flex-1'
-        }
-      />
+      <div className="flex flex-col items-stretch gap-2 border-b border-slate-700/50 bg-slate-900/70 px-4 py-2">
+        <div className="flex w-full min-w-0 max-w-full items-center gap-1 overflow-x-auto">
+          <span className="mr-1 shrink-0 text-xs text-slate-400">主图:</span>
+          {mainIndicators.map((indicator) => (
+            <Badge
+              key={indicator.key}
+              variant={mainIndicator === indicator.key ? 'default' : 'outline'}
+              className={`shrink-0 cursor-pointer px-2 py-0.5 text-xs ${
+                mainIndicator === indicator.key
+                  ? 'border-blue-600/50 bg-blue-600/20 text-blue-400 hover:bg-blue-600/30'
+                  : 'border-slate-600 text-slate-400 hover:text-slate-200'
+              }`}
+              onClick={() => toggleMainIndicator(indicator.key)}
+            >
+              {indicator.label}
+            </Badge>
+          ))}
+        </div>
+
+        <div className="flex w-full min-w-0 max-w-full items-center gap-1 overflow-x-auto">
+          <span className="mr-1 shrink-0 text-xs text-slate-400">副图:</span>
+          {subIndicators.map((indicator) => (
+            <Badge
+              key={indicator.key}
+              variant={subIndicator === indicator.key ? 'default' : 'outline'}
+              className={`shrink-0 cursor-pointer px-2 py-0.5 text-xs ${
+                subIndicator === indicator.key
+                  ? 'border-violet-500/50 bg-violet-500/20 text-violet-300 hover:bg-violet-500/30'
+                  : 'border-slate-600 text-slate-400 hover:text-slate-200'
+              }`}
+              onClick={() => toggleSubIndicator(indicator.key)}
+            >
+              {indicator.label}
+            </Badge>
+          ))}
+        </div>
+      </div>
+
     </div>
   );
 }
