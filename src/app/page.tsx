@@ -2,8 +2,14 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { Plus, LayoutDashboard, ChevronLeft } from 'lucide-react';
+import { Plus, LayoutDashboard, ChevronDown, ChevronLeft, Star, WalletCards } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { usePortfolio } from '@/hooks/use-portfolio';
 import HoldingsTable from '@/components/holdings-table';
 import HoldingsDialog from '@/components/holdings-dialog';
@@ -209,14 +215,37 @@ function HomeContent() {
           </div>
           <div className="flex items-center gap-2">
             <ImportExport holdings={holdings} onImport={importHoldings} />
-            <Button
-              size="sm"
-              onClick={handleOpenAdd}
-              className="bg-[#30d158] hover:bg-[#30d158]/90 text-white h-7 px-3 text-xs font-medium rounded-lg shadow-none"
-            >
-              <Plus className="w-3.5 h-3.5 mr-1" />
-              添加
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  className="bg-[#30d158] hover:bg-[#30d158]/90 text-white h-7 px-3 text-xs font-medium rounded-lg shadow-none"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  添加
+                  <ChevronDown className="w-3 h-3 opacity-80" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-36 rounded-xl border-white/[0.08] bg-[#2c2c2e] p-1.5 text-white shadow-xl"
+              >
+                <DropdownMenuItem
+                  onSelect={() => setWatchlistDialogOpen(true)}
+                  className="rounded-lg px-2.5 py-2 text-xs focus:bg-[#30d158]/15 focus:text-[#30d158]"
+                >
+                  <Star className="text-[#30d158]" />
+                  添加自选
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={handleOpenAdd}
+                  className="rounded-lg px-2.5 py-2 text-xs focus:bg-white/[0.08] focus:text-white"
+                >
+                  <WalletCards />
+                  添加持仓
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
