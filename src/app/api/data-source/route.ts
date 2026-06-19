@@ -4,6 +4,8 @@ import { getSinaQuoteUrl, getSinaScale } from '@/lib/data-source/adapters/sina';
 import { getTencentQuoteUrl, getTencentKLineUrl } from '@/lib/data-source/adapters/tencent';
 import { getYahooKLineUrl, getYahooQuoteUrl } from '@/lib/data-source/adapters/yahoo';
 import { generateMockKLineDataForStock } from '@/lib/kline-data';
+import { isMarketDataPersistenceEnabled } from '@/lib/db/client';
+import { loadMarketBars, storeLatestQuotes, storeMarketBars } from '@/lib/data-source/storage';
 import type { KLineItem, QuoteData } from '@/lib/data-source/types';
 import type { TimePeriod } from '@/lib/types';
 
@@ -16,6 +18,8 @@ interface DataSourceRequest {
   code: string;
   codes: string[];
   period: string;
+  endTime?: number;
+  limit: number;
 }
 
 interface SinaKLineRow {
@@ -38,6 +42,8 @@ export async function GET(req: NextRequest) {
     code: searchParams.get('code') || '',
     codes: searchParams.get('codes')?.split(',').filter(Boolean) || [],
     period: searchParams.get('period') || 'day',
+    endTime: parseOptionalNumber(searchParams.get('endTime')),
+    limit: parseLimit(searchParams.get('limit')),
   });
 }
 
@@ -51,32 +57,65 @@ export async function POST(req: NextRequest) {
     code: typeof body.code === 'string' ? body.code : '',
     codes: Array.isArray(rawCodes) ? rawCodes.filter((code): code is string => typeof code === 'string') : [],
     period: typeof body.period === 'string' ? body.period : 'day',
+    endTime: typeof body.endTime === 'number' ? body.endTime : undefined,
+    limit: typeof body.limit === 'number' ? parseLimit(String(body.limit)) : 520,
   });
 }
 
-async function handleDataSourceRequest({ type, source, code, codes, period }: DataSourceRequest) {
+async function handleDataSourceRequest({ type, source, code, codes, period, endTime, limit }: DataSourceRequest) {
 
   try {
     if (type === 'kline') {
       const data = await fetchKLine(source, code, period);
-      return NextResponse.json({ success: true, data });
+      const persisted = await storeMarketBars({ source, symbol: code, interval: period }, data);
+      return NextResponse.json({
+        success: true,
+        data,
+        storage: { enabled: isMarketDataPersistenceEnabled(), persisted },
+      });
     }
     if (type === 'quote') {
       const codeList = codes.length > 0 ? codes : [code].filter(Boolean);
       const quotes = await fetchQuotes(source, codeList);
       if (Object.keys(quotes).length === 0) throw new Error('行情源未返回有效报价');
-      return NextResponse.json({ success: true, data: quotes });
+      const persisted = await storeLatestQuotes(source, quotes);
+      return NextResponse.json({
+        success: true,
+        data: quotes,
+        storage: { enabled: isMarketDataPersistenceEnabled(), persisted },
+      });
     }
     return NextResponse.json({ success: false, error: 'Unknown type' }, { status: 400 });
   } catch (err) {
     console.error(`[Data Source] ${source} fetch failed for ${code}:`, err);
-    // 降级：返回模拟数据
     if (type === 'kline') {
+      const cached = await loadMarketBars({ source, symbol: code, interval: period, endTime, limit });
+      if (cached.length > 0) {
+        return NextResponse.json({
+          success: true,
+          data: cached,
+          cached: true,
+          storage: { enabled: true, persisted: true },
+        });
+      }
+      // 数据源和数据库缓存都不可用时才降级到模拟数据。
       const mock = generateMockKLineDataForStock(code || '600519', 200, period as TimePeriod);
       return NextResponse.json({ success: true, data: mock, fallback: true });
     }
     return NextResponse.json({ success: false, error: String(err) }, { status: 502 });
   }
+}
+
+function parseOptionalNumber(value: string | null): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function parseLimit(value: string | null): number {
+  const parsed = Number(value || 520);
+  if (!Number.isFinite(parsed)) return 520;
+  return Math.min(Math.max(Math.trunc(parsed), 1), 1000);
 }
 
 async function fetchKLine(source: string, code: string, period: string): Promise<KLineItem[]> {

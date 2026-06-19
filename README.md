@@ -336,6 +336,16 @@ export const useStore = create<Store>((set) => ({
 
 推荐使用 Prisma 或 Drizzle ORM，在 `src/lib/db.ts` 中配置。
 
+### 行情历史数据持久化
+
+项目支持将标准化 K 线和最新报价写入 Supabase PostgreSQL。未配置数据库时，行情接口仍会直接使用新浪、腾讯或 Yahoo 数据。
+
+1. 复制 `.env.example` 为 `.env.local`，填写 Supabase Transaction Pooler 的 `DATABASE_URL`。
+2. 执行 `pnpm db:migrate` 创建 `market_bars`、`latest_quotes` 和 `data_sync_state`。
+3. 启动应用。成功取得行情后会自动 upsert；上游 K 线失败时会优先读取已保存的历史数据。
+
+`market_bars` 以 `(source, symbol, interval, timestamp)` 去重，并按图表查询路径建立降序索引。
+
 ## 技术栈
 
 - **框架**: Next.js 16.1.1 (App Router)

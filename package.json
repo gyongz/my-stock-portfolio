@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "build": "bash ./scripts/build.sh",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
     "dev": "bash ./scripts/dev.sh",
     "preinstall": "npx only-allow pnpm",
     "lint": "eslint",
