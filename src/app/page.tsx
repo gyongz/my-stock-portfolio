@@ -224,8 +224,8 @@ function HomeContent() {
         )}
 
         {/* 持仓列表区域 */}
-        <div className={`flex flex-col min-w-0 bg-[#1c1c1e] ${
-          sideCollapsed ? 'xl:w-[180px]' : 'xl:flex-1'
+        <div className={`flex flex-col bg-[#1c1c1e] ${
+          sideCollapsed ? 'xl:w-[180px] w-[180px] shrink-0' : 'xl:flex-1 min-w-0'
         }`}>
           <div className="flex items-center justify-between px-4 py-2.5">
             <h3 className="text-[13px] font-medium text-white/70 tracking-tight">
