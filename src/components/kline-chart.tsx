@@ -107,6 +107,8 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [dataLoading, setDataLoading] = useState(false);
+  const [dataVersion, setDataVersion] = useState(0);
+  const [dataFallback, setDataFallback] = useState(false);
   const { dataSourceId } = useDataSourceContext();
 
   // 缓存 K 线数据 —— 优先从数据源获取，失败回退到模拟数据
@@ -117,21 +119,19 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
     async function loadData() {
       if (dataSourceId !== 'mock') {
         try {
-          const res = await fetch('/api/data-source', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              source: dataSourceId,
-              type: 'kline',
-              code: stockCode,
-              period: activePeriod,
-              count: 520,
-            }),
+          const params = new URLSearchParams({
+            source: dataSourceId,
+            type: 'kline',
+            code: stockCode,
+            period: activePeriod,
           });
+          const res = await fetch(`/api/data-source?${params.toString()}`, { cache: 'no-store' });
           if (!res.ok) throw new Error('API error');
-          const result = await res.json();
+          const result = await res.json() as { success: boolean; data: KLineChartData[]; fallback?: boolean };
           if (result.success && result.data.length > 0 && !cancelled) {
             dataRef.current = result.data as KLineChartData[];
+            setDataFallback(Boolean(result.fallback));
+            setDataVersion((version) => version + 1);
             setDataLoading(false);
             return;
           }
@@ -142,6 +142,8 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
       // 回退到模拟数据
       if (!cancelled) {
         dataRef.current = generateMockKLineDataForStock(stockCode, 520, activePeriod) as unknown as KLineChartData[];
+        setDataFallback(true);
+        setDataVersion((version) => version + 1);
         setDataLoading(false);
       }
     }
@@ -253,7 +255,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
     (subIndicatorRef.current ?? []).forEach((indicator) => {
       chart.createIndicator(indicator);
     });
-  }, [stockCode, activePeriod]); // 移除 mainIndicator / subIndicator 依赖
+  }, [stockCode, activePeriod, dataVersion]); // 数据返回后重新绑定 DataLoader
 
   const toggleMainIndicator = useCallback((indicator: TechnicalIndicator) => {
     setMainIndicator((current) => (current === indicator ? null : indicator));
@@ -383,7 +385,9 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="hidden text-xs text-[#98989d] sm:inline">数据为模拟演示</span>
+          <span className={`hidden text-xs sm:inline ${dataFallback ? 'text-[#ff9f0a]' : 'text-[#30d158]'}`}>
+            {dataLoading ? '数据加载中' : dataFallback ? '数据源异常 · 模拟降级' : '真实行情数据'}
+          </span>
           <Button
             variant="ghost"
             size="sm"

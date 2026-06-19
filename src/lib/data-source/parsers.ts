@@ -57,9 +57,17 @@ export function parseTencentRealTime(raw: string): QuoteData | null {
  * 解析 Yahoo Finance 历史K线
  * Yahoo 返回 JSON 格式，直接可解析
  */
-export function parseYahooKLine(json: any): KLineItem[] {
+export function parseYahooKLine(json: unknown): KLineItem[] {
   try {
-    const result = json?.chart?.result?.[0];
+    const payload = json as {
+      chart?: {
+        result?: Array<{
+          timestamp?: number[];
+          indicators?: { quote?: Array<Partial<Record<'open' | 'high' | 'low' | 'close' | 'volume', Array<number | null>>>> };
+        }>;
+      };
+    };
+    const result = payload.chart?.result?.[0];
     if (!result) return [];
     const timestamps = result.timestamp || [];
     const quotes = result.indicators?.quote?.[0] || {};

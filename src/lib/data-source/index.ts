@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import type { KLineItem, QuoteData, DataSourceId, DataSourceInfo } from './types';
 
 // 数据源元信息列表
@@ -27,10 +27,10 @@ function storeSource(id: DataSourceId) {
 async function fetchKLineData(source: DataSourceId, code: string, period: string): Promise<KLineItem[]> {
   const url = `/api/data-source?type=kline&source=${source}&code=${encodeURIComponent(code)}&period=${period}`;
   const res = await fetch(url, { cache: 'no-store' });
-  const json = await res.json();
+  const json = await res.json() as { success: boolean; data?: KLineItem[]; error?: string };
   if (json.success && Array.isArray(json.data)) {
     // 将 KLineItem 转换为 klinecharts 需要的格式
-    return json.data.map((item: any) => ({
+    return json.data.map((item) => ({
       timestamp: item.timestamp,
       open: item.open,
       high: item.high,
@@ -47,7 +47,7 @@ async function fetchQuotesData(source: DataSourceId, codes: string[]): Promise<R
   const codesParam = codes.map(c => encodeURIComponent(c)).join(',');
   const url = `/api/data-source?type=quote&source=${source}&codes=${codesParam}`;
   const res = await fetch(url, { cache: 'no-store' });
-  const json = await res.json();
+  const json = await res.json() as { success: boolean; data?: Record<string, QuoteData>; error?: string };
   if (json.success && json.data) {
     return json.data;
   }

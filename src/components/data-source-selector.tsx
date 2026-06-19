@@ -107,7 +107,10 @@ export default function DataSourceSelector({ currentSource, onSourceChange, comp
           ))}
           <div className="border-t border-[#3a3a3c] mt-1 pt-1">
             <button
-              onClick={onRefresh}
+              onClick={() => {
+                onRefresh?.();
+                setOpen(false);
+              }}
               className="w-full flex items-center gap-2 px-4 py-2 text-xs text-[#98989d]
                          hover:text-white hover:bg-white/5 transition-colors"
             >

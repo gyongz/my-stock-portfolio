@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { Holding, HoldingWithPnL } from '@/lib/types';
 import { getStockName, getStockBasePrice } from '@/lib/kline-data';
 
@@ -75,7 +75,7 @@ export function usePortfolio() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [dailyPnL, setDailyPnL] = useState(0);
-  const prevPricesRef = useRef<Record<string, number>>({});
+  const [prevPrices, setPrevPrices] = useState<Record<string, number>>({});
 
   // 初始化加载
   useEffect(() => {
@@ -89,7 +89,7 @@ export function usePortfolio() {
       DEFAULT_HOLDINGS.forEach((h) => {
         prev[h.id] = h.currentPrice * (0.98 + Math.random() * 0.04);
       });
-      prevPricesRef.current = prev;
+      setPrevPrices(prev);
       setDailyPnL(calculateDailyPnL(DEFAULT_HOLDINGS, prev));
     } else {
       setHoldings(stored);
@@ -97,7 +97,7 @@ export function usePortfolio() {
       stored.forEach((h) => {
         prev[h.id] = h.currentPrice * (0.98 + Math.random() * 0.04);
       });
-      prevPricesRef.current = prev;
+      setPrevPrices(prev);
       setDailyPnL(calculateDailyPnL(stored, prev));
     }
     setLoaded(true);
@@ -105,7 +105,7 @@ export function usePortfolio() {
 
   // 持有带盈亏计算的数据
   const holdingsWithPnL: HoldingWithPnL[] = holdings.map((h) =>
-    calcPnL(h, prevPricesRef.current[h.id])
+    calcPnL(h, prevPrices[h.id])
   );
 
   // 总统计
@@ -176,8 +176,8 @@ export function usePortfolio() {
       });
       saveHoldings(next);
 
-      // 更新 prevPricesRef 为刷新前的价格（下次刷新时作为昨日价）
-      prevPricesRef.current = oldPrices;
+      // 更新刷新前价格（下次刷新时作为对比快照）
+      setPrevPrices(oldPrices);
 
       // 计算日盈亏（新价格 vs 旧价格）
       const daily = next.reduce((sum, h) => {

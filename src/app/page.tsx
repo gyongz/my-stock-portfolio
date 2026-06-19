@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Plus, LayoutDashboard, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import ImportExport from '@/components/import-export';
 import DataSourceSelector from '@/components/data-source-selector';
 import { DataSourceProvider, useDataSourceContext } from '@/lib/data-source/context';
 import type { Holding, HoldingWithPnL } from '@/lib/types';
+import type { DataSourceId, QuoteData } from '@/lib/data-source/types';
 import { getStockName, getStockBasePrice } from '@/lib/kline-data';
 
 // 动态导入图表组件（避免 SSR 问题）
@@ -54,6 +55,8 @@ function HomeContent() {
   const [selectedHolding, setSelectedHolding] = useState<HoldingWithPnL | null>(null);
   const [showChart, setShowChart] = useState(true);
   const [sideCollapsed, setSideCollapsed] = useState(false);
+  const [marketStatus, setMarketStatus] = useState<'loading' | 'live' | 'fallback'>('loading');
+  const [marketError, setMarketError] = useState<string | null>(null);
 
   /** 打开添加持仓弹窗 */
   const handleOpenAdd = useCallback(() => {
@@ -88,37 +91,57 @@ function HomeContent() {
   );
 
   /** 获取当前选中股票的代码 */
-  const displayCode = selectedHolding?.code || holdings[0]?.code || '000333';
-  const displayName = selectedHolding?.name || getStockName(displayCode);
-  const displayPrice = selectedHolding?.currentPrice ?? getStockBasePrice(displayCode);
+  const selectedHoldingLatest = selectedHolding
+    ? holdingsWithPnL.find((holding) => holding.id === selectedHolding.id)
+    : undefined;
+  const displayCode = selectedHoldingLatest?.code || holdings[0]?.code || '000333';
+  const displayName = selectedHoldingLatest?.name || getStockName(displayCode);
+  const displayPrice = selectedHoldingLatest?.currentPrice ?? holdings[0]?.currentPrice ?? getStockBasePrice(displayCode);
+  const holdingCodes = holdings.map((holding) => holding.code).join(',');
 
   /** 带数据源刷新的行情更新 */
   const handleRefresh = useCallback(async () => {
+    if (!holdingCodes) return;
     if (dataSourceId === 'mock') {
       refreshPrices();
+      setMarketStatus('fallback');
       return;
     }
-    // 尝试从真实数据源获取行情
+    setMarketStatus('loading');
+    setMarketError(null);
     try {
-      const codes = holdings.map((h) => h.code).join(',');
-      const res = await fetch('/api/data-source', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: dataSourceId, type: 'quote', codes }),
-      });
-      if (res.ok) {
-        const result = await res.json();
-        if (result.success && result.data) {
-          // 使用真实的行情数据更新持仓：格式 { [code]: { price, change, changePercent } }
-          refreshPrices(result.data);
-          return;
-        }
+      const params = new URLSearchParams({ type: 'quote', source: dataSourceId, codes: holdingCodes });
+      const res = await fetch(`/api/data-source?${params.toString()}`, { cache: 'no-store' });
+      const result = await res.json() as {
+        success: boolean;
+        data?: Record<string, QuoteData>;
+        error?: string;
+      };
+      if (!res.ok || !result.success || !result.data) {
+        throw new Error(result.error || `行情请求失败: ${res.status}`);
       }
-    } catch {
-      // 获取失败，回退到模拟刷新
+      const prices = Object.fromEntries(
+        Object.entries(result.data).map(([code, quote]) => [code, quote.price])
+      );
+      if (Object.keys(prices).length === 0) throw new Error('行情源未返回有效价格');
+      refreshPrices(prices);
+      setMarketStatus('live');
+      return;
+    } catch (error) {
+      setMarketError(error instanceof Error ? error.message : String(error));
+      setMarketStatus('fallback');
     }
     refreshPrices();
-  }, [dataSourceId, holdings, refreshPrices]);
+  }, [dataSourceId, holdingCodes, refreshPrices]);
+
+  useEffect(() => {
+    void handleRefresh();
+  }, [handleRefresh]);
+
+  const handleDataSourceChange = useCallback((id: DataSourceId) => {
+    setMarketStatus('loading');
+    setDataSource(id);
+  }, [setDataSource]);
 
   return (
     <div className="min-h-screen bg-[#1c1c1e] flex flex-col">
@@ -135,10 +158,19 @@ function HomeContent() {
               </h1>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-[11px] text-[#98989d] bg-white/[0.06] px-2 py-0.5 rounded-md">
-                模拟演示
+              <span
+                className={`text-[11px] px-2 py-0.5 rounded-md ${
+                  marketStatus === 'live' ? 'bg-[#30d158]/10 text-[#30d158]' : 'bg-white/[0.06] text-[#98989d]'
+                }`}
+                title={marketError || undefined}
+              >
+                {marketStatus === 'loading' ? '行情更新中' : marketStatus === 'live' ? '实时行情' : '模拟降级'}
               </span>
-              <DataSourceSelector currentSource={dataSourceId} onSourceChange={setDataSource} />
+              <DataSourceSelector
+                currentSource={dataSourceId}
+                onSourceChange={handleDataSourceChange}
+                onRefresh={handleRefresh}
+              />
             </div>
           </div>
           <div className="flex items-center gap-2">

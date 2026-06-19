@@ -12,19 +12,17 @@ export function getTencentCode(code: string): string {
 /** 获取腾讯实时行情URL */
 export function getTencentQuoteUrl(codes: string[]): string {
   const tencentCodes = codes.map(getTencentCode).join(',');
-  return `http://qt.gtimg.cn/q=${tencentCodes}`;
+  return `https://qt.gtimg.cn/q=${tencentCodes}`;
 }
 
 /** 获取腾讯历史K线URL */
 export function getTencentKLineUrl(code: string, period: string): string {
   const tencentCode = getTencentCode(code);
-  const periodMap: Record<string, string> = {
-    'day': 'day',
-    'week': 'week',
-    'month': 'month',
-    '60min': '60min',
-    '30min': '30min',
-  };
+  if (period === '60min' || period === '30min') {
+    const minutePeriod = period === '60min' ? 'm60' : 'm30';
+    return `https://ifzq.gtimg.cn/appstock/app/kline/mkline?param=${tencentCode},${minutePeriod},,520`;
+  }
+  const periodMap: Record<string, string> = { day: 'day', week: 'week', month: 'month' };
   const p = periodMap[period] || 'day';
-  return `http://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${tencentCode},${p},,,520`;
+  return `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${tencentCode},${p},,,520,qfq`;
 }
