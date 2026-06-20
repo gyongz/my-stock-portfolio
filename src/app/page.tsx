@@ -161,7 +161,11 @@ function HomeContent() {
     ? watchlist.find((item) => item.code === selectedWatchlistItem.code)
     : undefined;
   const displayCode = selectedWatchlistLatest?.code || selectedHoldingLatest?.code || holdings[0]?.code || watchlist[0]?.code || '000333';
-  const displayName = selectedWatchlistLatest?.name || selectedHoldingLatest?.name || getStockName(displayCode);
+  const displayName = selectedWatchlistLatest?.name
+    || selectedHoldingLatest?.name
+    || holdings[0]?.name
+    || watchlist[0]?.name
+    || getStockName(displayCode);
   const displayPrice = selectedWatchlistLatest?.currentPrice
     ?? selectedHoldingLatest?.currentPrice
     ?? holdings[0]?.currentPrice
