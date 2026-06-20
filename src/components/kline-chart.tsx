@@ -337,6 +337,8 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
   const restoreCurrentChartView = useCallback((chart: Chart) => {
     const view = readChartView(stockCode, activePeriod);
     if (!view || chartRef.current !== chart) return;
+    // 数据未加载完成时跳过（数据加载后会重新调用）
+    if (!chart.getDataList || !chart.getDataList()?.length) return;
     restoringViewRef.current = true;
     chart.setBarSpace(view.barSpace);
     chart.scrollToTimestamp(view.rightTimestamp, 0);
