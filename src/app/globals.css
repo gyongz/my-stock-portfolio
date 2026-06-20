@@ -139,6 +139,14 @@ html, body {
   background: color-mix(in srgb, var(--foreground) 25%, transparent);
 }
 
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* 选中文字颜色 */
 ::selection {
   background-color: rgba(48, 209, 88, 0.3);

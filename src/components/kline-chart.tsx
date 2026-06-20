@@ -737,41 +737,42 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
           : 'flex h-full flex-col'
       }
     >
-      <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">{stockName}</h2>
-            <span className="text-sm text-muted-foreground">{stockCode}</span>
+      <div className="flex flex-col gap-2 border-b border-border/60 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3">
+        <div className="flex w-full min-w-0 items-center justify-between gap-3 sm:w-auto sm:justify-start">
+          <div className="min-w-0">
+            <h2 className="truncate text-base font-semibold leading-tight text-foreground sm:text-lg">{stockName}</h2>
+            <span className="mt-0.5 block font-mono text-xs leading-none text-muted-foreground sm:text-sm">{stockCode}</span>
           </div>
-          <span className="ml-4 font-mono text-2xl font-bold text-foreground">
+          <span aria-hidden="true" className="h-9 w-px shrink-0 bg-border/70" />
+          <span className="shrink-0 font-mono text-xl font-bold tabular-nums text-foreground sm:text-2xl">
             {currentPrice.toFixed(2)}
           </span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className={`hidden text-xs sm:inline ${dataFallback ? 'text-[#ff9f0a]' : 'text-[#30d158]'}`}>
+        <div className="flex w-full min-w-0 items-center justify-end gap-1 overflow-x-auto pb-0.5 sm:w-auto sm:gap-1.5 sm:overflow-visible sm:pb-0">
+          <span className={`shrink-0 text-[11px] sm:text-xs ${dataFallback ? 'text-[#ff9f0a]' : 'text-[#30d158]'}`}>
             {dataLoading ? '数据加载中' : dataFallback ? '数据源异常 · 模拟降级' : '真实行情数据'}
           </span>
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+            className="h-7 shrink-0 px-2 text-xs text-muted-foreground hover:text-foreground"
             onClick={exportChartImage}
           >
-            <Camera className="mr-1 h-3.5 w-3.5" />
-            截图
+            <Camera className="h-3.5 w-3.5 min-[400px]:mr-1" />
+            <span className="hidden min-[400px]:inline">截图</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+            className="h-7 shrink-0 px-2 text-xs text-muted-foreground hover:text-foreground"
             onClick={() => setIsFocusMode((current) => !current)}
           >
             {isFocusMode ? (
-              <Minimize2 className="mr-1 h-3.5 w-3.5" />
+              <Minimize2 className="h-3.5 w-3.5 min-[400px]:mr-1" />
             ) : (
-              <Maximize2 className="mr-1 h-3.5 w-3.5" />
+              <Maximize2 className="h-3.5 w-3.5 min-[400px]:mr-1" />
             )}
-            {isFocusMode ? '退出' : '专注'}
+            <span className="hidden min-[400px]:inline">{isFocusMode ? '退出' : '专注'}</span>
           </Button>
         </div>
       </div>
@@ -890,41 +891,45 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
         </span>
       </div>
 
-      <div className="flex flex-col items-stretch gap-2 border-b border-border/60 bg-background px-4 py-2">
-        <div className="flex w-full min-w-0 max-w-full items-center gap-1 overflow-x-auto">
-          <span className="mr-1 shrink-0 text-xs text-muted-foreground">主图:</span>
-          {mainIndicators.map((indicator) => (
-            <Badge
-              key={indicator.key}
-              variant={mainIndicator === indicator.key ? 'default' : 'outline'}
-              className={`shrink-0 cursor-pointer px-2 py-0.5 text-xs ${
-                mainIndicator === indicator.key
-                  ? 'border-blue-500/50 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30'
-                  : 'border-border text-muted-foreground hover:text-foreground'
-              }`}
-              onClick={() => toggleMainIndicator(indicator.key)}
-            >
-              {indicator.label}
-            </Badge>
-          ))}
+      <div className="grid gap-1.5 border-b border-border/60 bg-background px-3 py-2 sm:px-4">
+        <div className="grid min-w-0 grid-cols-[2.25rem_minmax(0,1fr)] items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">主图:</span>
+          <div className="scrollbar-none flex min-w-0 items-center gap-1 overflow-x-auto overscroll-x-contain pb-0.5 touch-pan-x">
+            {mainIndicators.map((indicator) => (
+              <Badge
+                key={indicator.key}
+                variant={mainIndicator === indicator.key ? 'default' : 'outline'}
+                className={`shrink-0 cursor-pointer px-2 py-0.5 text-xs ${
+                  mainIndicator === indicator.key
+                    ? 'border-blue-500/50 bg-blue-500/20 text-blue-700 hover:bg-blue-500/30 dark:text-blue-300'
+                    : 'border-border text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => toggleMainIndicator(indicator.key)}
+              >
+                {indicator.label}
+              </Badge>
+            ))}
+          </div>
         </div>
 
-        <div className="flex w-full min-w-0 max-w-full items-center gap-1 overflow-x-auto">
-          <span className="mr-1 shrink-0 text-xs text-muted-foreground">副图:</span>
-          {subIndicatorList.map((indicator) => (
-            <Badge
-              key={indicator.key}
-              variant={subIndicators.includes(indicator.key) ? 'default' : 'outline'}
-              className={`shrink-0 cursor-pointer px-2 py-0.5 text-xs ${
-                subIndicators.includes(indicator.key)
-                  ? 'border-violet-500/50 bg-violet-500/20 text-violet-300 hover:bg-violet-500/30'
-                  : 'border-border text-muted-foreground hover:text-foreground'
-              }`}
-              onClick={() => toggleSubIndicator(indicator.key)}
-            >
-              {indicator.label}
-            </Badge>
-          ))}
+        <div className="grid min-w-0 grid-cols-[2.25rem_minmax(0,1fr)] items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">副图:</span>
+          <div className="scrollbar-none flex min-w-0 items-center gap-1 overflow-x-auto overscroll-x-contain pb-0.5 touch-pan-x">
+            {subIndicatorList.map((indicator) => (
+              <Badge
+                key={indicator.key}
+                variant={subIndicators.includes(indicator.key) ? 'default' : 'outline'}
+                className={`shrink-0 cursor-pointer px-2 py-0.5 text-xs ${
+                  subIndicators.includes(indicator.key)
+                    ? 'border-violet-500/50 bg-violet-500/20 text-violet-700 hover:bg-violet-500/30 dark:text-violet-300'
+                    : 'border-border text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => toggleSubIndicator(indicator.key)}
+              >
+                {indicator.label}
+              </Badge>
+            ))}
+          </div>
         </div>
       </div>
 
