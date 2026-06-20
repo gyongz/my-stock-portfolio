@@ -54,6 +54,8 @@ import {
   writePersistedSnapshot,
   type PersistedOverlay,
 } from '@/lib/drawing-storage';
+import { useAuth } from '@/components/auth-provider';
+import { saveCloudDrawing, syncCloudDrawing } from '@/lib/cloud-storage';
 
 const periodMap: Record<TimePeriod, { type: PeriodType; span: number }> = {
   '1min': { type: 'minute', span: 1 },
@@ -211,6 +213,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
   const [dataVersion, setDataVersion] = useState(0);
   const [dataFallback, setDataFallback] = useState(false);
   const { dataSourceId } = useDataSourceContext();
+  const { user } = useAuth();
   const drawingStorageKey = getDrawingStorageKey(stockCode, activePeriod);
 
   // 缓存 K 线数据 —— 优先从数据源获取，失败回退到模拟数据
@@ -280,6 +283,15 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     setCanRedoDrawing(redoStackRef.current.length > 0);
   }, []);
 
+  const persistDrawingSnapshot = useCallback((snapshot: PersistedOverlay[]) => {
+    writePersistedSnapshot(drawingStorageKey, snapshot);
+    if (user) {
+      void saveCloudDrawing(user.id, stockCode, activePeriod, snapshot).catch((error) => {
+        console.error('保存云端画线失败，已保留本地缓存', error);
+      });
+    }
+  }, [activePeriod, drawingStorageKey, stockCode, user]);
+
   const commitDrawingState = useCallback(() => {
     const nextSnapshot = getCurrentDrawingSnapshot();
     const previousSnapshot = committedSnapshotRef.current;
@@ -289,10 +301,10 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     if (undoStackRef.current.length > 50) undoStackRef.current.shift();
     redoStackRef.current = [];
     committedSnapshotRef.current = nextSnapshot;
-    writePersistedSnapshot(drawingStorageKey, nextSnapshot);
+    persistDrawingSnapshot(nextSnapshot);
     setDrawingCount(nextSnapshot.length);
     syncHistoryControls();
-  }, [drawingStorageKey, getCurrentDrawingSnapshot, syncHistoryControls]);
+  }, [getCurrentDrawingSnapshot, persistDrawingSnapshot, syncHistoryControls]);
 
   const buildPersistedOverlay = useCallback((overlay: PersistedOverlay): OverlayCreate => ({
     ...overlay,
@@ -319,10 +331,10 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     }
     activeDrawingIdRef.current = null;
     committedSnapshotRef.current = committedSnapshot;
-    writePersistedSnapshot(drawingStorageKey, committedSnapshot);
+    persistDrawingSnapshot(committedSnapshot);
     setDrawingCount(committedSnapshot.length);
     setActiveDrawingTool(null);
-  }, [buildPersistedOverlay, drawingStorageKey]);
+  }, [buildPersistedOverlay, persistDrawingSnapshot]);
 
   const initChart = useCallback(() => {
     if (!containerRef.current) return;
@@ -488,6 +500,24 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
       }
     };
   }, [mounted, initChart]);
+
+  // 登录后以云端记录为准；如果云端尚无记录，则把现有本地画线作为首次迁移内容。
+  useEffect(() => {
+    if (!mounted || !user || !chartRef.current) return;
+    let cancelled = false;
+    const localSnapshot = clonePersistedSnapshot(readPersistedOverlays(drawingStorageKey));
+    const expectedSnapshot = JSON.stringify(localSnapshot);
+    void syncCloudDrawing(user.id, stockCode, activePeriod, localSnapshot).then((remoteSnapshot) => {
+      if (cancelled || JSON.stringify(committedSnapshotRef.current) !== expectedSnapshot) return;
+      applyDrawingSnapshot(remoteSnapshot);
+      undoStackRef.current = [];
+      redoStackRef.current = [];
+      syncHistoryControls();
+    }).catch((error) => {
+      console.error('加载云端画线失败，暂用本地缓存', error);
+    });
+    return () => { cancelled = true; };
+  }, [activePeriod, applyDrawingSnapshot, drawingStorageKey, mounted, stockCode, syncHistoryControls, user]);
 
   // KLineChart 官方支持增量 setStyles；切换主题时保留图表、覆盖物和历史栈。
   useEffect(() => {

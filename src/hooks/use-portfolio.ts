@@ -3,6 +3,13 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { Holding, HoldingWithPnL } from '@/lib/types';
 import { getStockName, getStockBasePrice } from '@/lib/kline-data';
+import { useAuth } from '@/components/auth-provider';
+import {
+  deleteCloudHolding,
+  fetchCloudHoldings,
+  replaceCloudHoldings,
+  upsertCloudHoldings,
+} from '@/lib/cloud-storage';
 
 const STORAGE_KEY = 'portfolio-holdings';
 
@@ -72,6 +79,7 @@ const DEFAULT_HOLDINGS: Holding[] = [
 ];
 
 export function usePortfolio() {
+  const { configured, user } = useAuth();
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [dailyPnL, setDailyPnL] = useState(0);
@@ -79,29 +87,52 @@ export function usePortfolio() {
 
   // 初始化加载
   useEffect(() => {
+    let cancelled = false;
+
+    const applyHoldings = (items: Holding[]) => {
+      if (cancelled) return;
+      setHoldings(items);
+      saveHoldings(items);
+      const prev: Record<string, number> = {};
+      items.forEach((holding) => {
+        prev[holding.id] = holding.currentPrice * (0.98 + Math.random() * 0.04);
+      });
+      setPrevPrices(prev);
+      setDailyPnL(calculateDailyPnL(items, prev));
+      setLoaded(true);
+    };
+
     const stored = loadHoldings();
-    if (stored.length === 0) {
+    if (configured && user) {
+      const migrationKey = `portfolio-holdings-cloud-migrated:${user.id}`;
+      void fetchCloudHoldings(user.id).then(async (remote) => {
+        if (remote.length > 0) {
+          localStorage.setItem(migrationKey, '1');
+          applyHoldings(remote);
+          return;
+        }
+        const alreadyMigrated = localStorage.getItem(migrationKey) === '1';
+        if (!alreadyMigrated && stored.length > 0) {
+          await upsertCloudHoldings(user.id, stored);
+          localStorage.setItem(migrationKey, '1');
+          applyHoldings(stored);
+          return;
+        }
+        localStorage.setItem(migrationKey, '1');
+        applyHoldings([]);
+      }).catch((error) => {
+        console.error('加载云端持仓失败，暂用本地缓存', error);
+        applyHoldings(stored);
+      });
+    } else if (stored.length === 0) {
       // 首次使用，写入默认示例
-      saveHoldings(DEFAULT_HOLDINGS);
-      setHoldings(DEFAULT_HOLDINGS);
-      // 初始化昨日价格
-      const prev: Record<string, number> = {};
-      DEFAULT_HOLDINGS.forEach((h) => {
-        prev[h.id] = h.currentPrice * (0.98 + Math.random() * 0.04);
-      });
-      setPrevPrices(prev);
-      setDailyPnL(calculateDailyPnL(DEFAULT_HOLDINGS, prev));
+      applyHoldings(DEFAULT_HOLDINGS);
     } else {
-      setHoldings(stored);
-      const prev: Record<string, number> = {};
-      stored.forEach((h) => {
-        prev[h.id] = h.currentPrice * (0.98 + Math.random() * 0.04);
-      });
-      setPrevPrices(prev);
-      setDailyPnL(calculateDailyPnL(stored, prev));
+      applyHoldings(stored);
     }
-    setLoaded(true);
-  }, []);
+
+    return () => { cancelled = true; };
+  }, [configured, user]);
 
   // 持有带盈亏计算的数据
   const holdingsWithPnL: HoldingWithPnL[] = holdings.map((h) =>
@@ -131,9 +162,10 @@ export function usePortfolio() {
     setHoldings((prev) => {
       const next = [...prev, newHolding];
       saveHoldings(next);
+      if (user) void upsertCloudHoldings(user.id, [newHolding]).catch(console.error);
       return next;
     });
-  }, []);
+  }, [user]);
 
   /** 更新持仓 */
   const updateHolding = useCallback((id: string, updates: Partial<Omit<Holding, 'id' | 'updatedAt'>>) => {
@@ -144,18 +176,21 @@ export function usePortfolio() {
           : h
       );
       saveHoldings(next);
+      const updated = next.find((holding) => holding.id === id);
+      if (user && updated) void upsertCloudHoldings(user.id, [updated]).catch(console.error);
       return next;
     });
-  }, []);
+  }, [user]);
 
   /** 删除持仓 */
   const removeHolding = useCallback((id: string) => {
     setHoldings((prev) => {
       const next = prev.filter((h) => h.id !== id);
       saveHoldings(next);
+      if (user) void deleteCloudHolding(user.id, id).catch(console.error);
       return next;
     });
-  }, []);
+  }, [user]);
 
   /** 刷新当前价格（支持传入真实行情报价） */
   const refreshPrices = useCallback((quotes?: Record<string, number>) => {
@@ -175,6 +210,7 @@ export function usePortfolio() {
         return { ...h, currentPrice: newPrice, updatedAt: new Date().toISOString() };
       });
       saveHoldings(next);
+      if (user) void upsertCloudHoldings(user.id, next).catch(console.error);
 
       // 更新刷新前价格（下次刷新时作为对比快照）
       setPrevPrices(oldPrices);
@@ -188,7 +224,7 @@ export function usePortfolio() {
 
       return next;
     });
-  }, []);
+  }, [user]);
 
   /** 手动设置某只股票的当前价格 */
   const setCurrentPrice = useCallback((id: string, price: number) => {
@@ -197,15 +233,18 @@ export function usePortfolio() {
         h.id === id ? { ...h, currentPrice: price, updatedAt: new Date().toISOString() } : h
       );
       saveHoldings(next);
+      const updated = next.find((holding) => holding.id === id);
+      if (user && updated) void upsertCloudHoldings(user.id, [updated]).catch(console.error);
       return next;
     });
-  }, []);
+  }, [user]);
 
   /** 导入持仓数据（替换全部） */
   const importHoldings = useCallback((data: Holding[]) => {
     setHoldings(data);
     saveHoldings(data);
-  }, []);
+    if (user) void replaceCloudHoldings(user.id, data).catch(console.error);
+  }, [user]);
 
   /** 获取当前价格（用于图表显示时取当前价格变化） */
   const getCurrentPrice = useCallback(

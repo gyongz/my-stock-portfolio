@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { Plus, LayoutDashboard, ChevronDown, ChevronLeft, Moon, Star, Sun, WalletCards } from 'lucide-react';
+import { Plus, LayoutDashboard, ChevronDown, ChevronLeft, Cloud, LogOut, Moon, Star, Sun, WalletCards } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -24,6 +24,8 @@ import type { Holding, HoldingWithPnL, WatchlistItem } from '@/lib/types';
 import type { DataSourceId, QuoteData, StockInfo } from '@/lib/data-source/types';
 import { getStockName, getStockBasePrice } from '@/lib/kline-data';
 import { useWatchlist } from '@/hooks/use-watchlist';
+import { AuthGate } from '@/components/auth-gate';
+import { useAuth } from '@/components/auth-provider';
 
 // 动态导入图表组件（避免 SSR 问题）
 const KLineChart = dynamic(() => import('@/components/kline-chart'), {
@@ -40,13 +42,16 @@ const KLineChart = dynamic(() => import('@/components/kline-chart'), {
 
 export default function Home() {
   return (
-    <DataSourceProvider>
-      <HomeContent />
-    </DataSourceProvider>
+    <AuthGate>
+      <DataSourceProvider>
+        <HomeContent />
+      </DataSourceProvider>
+    </AuthGate>
   );
 }
 
 function HomeContent() {
+  const { configured, user, signOut } = useAuth();
   const {
     holdings,
     holdingsWithPnL,
@@ -242,6 +247,10 @@ function HomeContent() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            <span className="hidden items-center gap-1 rounded-md bg-muted/60 px-2 py-1 text-[11px] text-muted-foreground md:flex" title={configured ? user?.email : '配置 Supabase 后启用云端私有存储'}>
+              <Cloud className="h-3 w-3" />
+              {configured ? '云端已连接' : '本地模式'}
+            </span>
             <Button
               variant="ghost"
               size="icon-sm"
@@ -253,6 +262,11 @@ function HomeContent() {
               {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
             <ImportExport holdings={holdings} onImport={importHoldings} />
+            {user && (
+              <Button variant="ghost" size="icon-sm" onClick={() => void signOut()} title="退出登录" aria-label="退出登录" className="h-8 w-8 text-muted-foreground">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
