@@ -48,6 +48,39 @@ export function clonePersistedSnapshot(snapshot: PersistedOverlay[]): PersistedO
   return JSON.parse(JSON.stringify(snapshot)) as PersistedOverlay[];
 }
 
+export function remapDrawingDataIndexes(
+  snapshot: PersistedOverlay[],
+  data: Array<{ timestamp: number }>,
+): PersistedOverlay[] {
+  if (data.length === 0) return clonePersistedSnapshot(snapshot);
+  const timestamps = data.map((item) => item.timestamp);
+  const exactIndexes = new Map(timestamps.map((timestamp, index) => [timestamp, index]));
+  const nearestIndex = (timestamp: number): number => {
+    const exact = exactIndexes.get(timestamp);
+    if (exact !== undefined) return exact;
+    let low = 0;
+    let high = timestamps.length - 1;
+    while (low < high) {
+      const middle = Math.floor((low + high) / 2);
+      if (timestamps[middle] < timestamp) low = middle + 1;
+      else high = middle;
+    }
+    if (low === 0) return 0;
+    const previous = low - 1;
+    return Math.abs(timestamps[low] - timestamp) < Math.abs(timestamps[previous] - timestamp) ? low : previous;
+  };
+
+  return snapshot.map((overlay) => ({
+    ...overlay,
+    points: overlay.points.map((point) => ({
+      ...point,
+      dataIndex: typeof point.timestamp === 'number' && Number.isFinite(point.timestamp)
+        ? nearestIndex(point.timestamp)
+        : point.dataIndex,
+    })),
+  }));
+}
+
 export function writePersistedSnapshot(storageKey: string, snapshot: PersistedOverlay[]): number {
   if (typeof window === 'undefined') return 0;
   localStorage.setItem(storageKey, JSON.stringify(snapshot));

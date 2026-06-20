@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import math
 import os
+import socket
 import threading
 import time
 from datetime import date, datetime, timedelta
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 import akshare as ak
 import baostock as bs
+import pandas as pd
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 
 
@@ -20,7 +22,7 @@ _cache_lock = threading.Lock()
 _cache: dict[str, tuple[float, Any]] = {}
 
 
-def require_token(authorization: str | None = Header(default=None)) -> None:
+def require_token(authorization: Optional[str] = Header(default=None)) -> None:
     expected = os.getenv("MARKET_DATA_SERVICE_TOKEN", "").strip()
     if expected and authorization != f"Bearer {expected}":
         raise HTTPException(status_code=401, detail="Invalid market data service token")
@@ -76,14 +78,40 @@ def dataframe_records(frame) -> list[dict[str, Any]]:
 
 def akshare_spot_records() -> list[dict[str, Any]]:
     def load():
-        records = dataframe_records(ak.stock_zh_a_spot_em())
+        # 新浪接口请求较多但稳定；东方财富全市场接口在部分网络会主动断开连接。
+        records = dataframe_records(ak.stock_zh_a_spot())
         try:
-            records.extend(dataframe_records(ak.fund_etf_spot_em()))
+            records.extend(dataframe_records(ak.fund_etf_category_sina(symbol="ETF基金")))
         except Exception:
             pass
         return records
 
-    return cached("akshare:spot", 15, load)
+    return cached("akshare:spot", 60, load)
+
+
+def akshare_sina_daily(code: str, period: str):
+    clean = normalize_code(code)
+    symbol = baostock_code(clean).replace(".", "")
+    if is_etf_code(clean):
+        frame = ak.fund_etf_hist_sina(symbol=symbol)
+    else:
+        frame = ak.stock_zh_a_daily(
+            symbol=symbol,
+            start_date=(date.today() - timedelta(days=3650)).strftime("%Y%m%d"),
+            end_date=date.today().strftime("%Y%m%d"),
+            adjust="qfq",
+        )
+    if period in {"week", "month"} and not frame.empty:
+        rule = "W-FRI" if period == "week" else "ME"
+        frame = (
+            frame.assign(date=pd.to_datetime(frame["date"]))
+            .set_index("date")
+            .resample(rule)
+            .agg({"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"})
+            .dropna(subset=["close"])
+            .reset_index()
+        )
+    return frame.rename(columns={"date": "日期", "open": "开盘", "high": "最高", "low": "最低", "close": "收盘", "volume": "成交量"})
 
 
 def akshare_kline(code: str, period: str, limit: int) -> list[dict[str, Any]]:
@@ -91,7 +119,10 @@ def akshare_kline(code: str, period: str, limit: int) -> list[dict[str, Any]]:
     if period in {"day", "week", "month"}:
         period_map = {"day": "daily", "week": "weekly", "month": "monthly"}
         loader = ak.fund_etf_hist_em if is_etf_code(clean) else ak.stock_zh_a_hist
-        frame = loader(symbol=clean, period=period_map[period], start_date=(date.today() - timedelta(days=3650)).strftime("%Y%m%d"), end_date=date.today().strftime("%Y%m%d"), adjust="qfq")
+        try:
+            frame = loader(symbol=clean, period=period_map[period], start_date=(date.today() - timedelta(days=3650)).strftime("%Y%m%d"), end_date=date.today().strftime("%Y%m%d"), adjust="qfq")
+        except Exception:
+            frame = akshare_sina_daily(clean, period)
         time_column = "日期"
     else:
         minute = period.replace("min", "")
@@ -124,7 +155,7 @@ def akshare_quotes(codes: list[str]) -> dict[str, dict[str, float]]:
     wanted = {normalize_code(code) for code in codes}
     results: dict[str, dict[str, float]] = {}
     for row in akshare_spot_records():
-        code = normalize_code(str(row.get("代码", "")))
+        code = normalize_code(str(row.get("代码", "")))[-6:]
         if code not in wanted:
             continue
         price = safe_float(row.get("最新价"))
@@ -148,7 +179,7 @@ def akshare_stocks() -> list[dict[str, Any]]:
     seen: set[str] = set()
     results: list[dict[str, Any]] = []
     for row in akshare_spot_records():
-        code = normalize_code(str(row.get("代码", "")))
+        code = normalize_code(str(row.get("代码", "")))[-6:]
         name = str(row.get("名称", "")).strip()
         if len(code) != 6 or not name or code in seen:
             continue
@@ -165,7 +196,15 @@ def akshare_stocks() -> list[dict[str, Any]]:
 class BaoSession:
     def __enter__(self):
         _bao_lock.acquire()
-        result = bs.login()
+        previous_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(15)
+        try:
+            result = bs.login()
+        except Exception:
+            _bao_lock.release()
+            raise
+        finally:
+            socket.setdefaulttimeout(previous_timeout)
         if result.error_code != "0":
             _bao_lock.release()
             raise RuntimeError(f"BaoStock login failed: {result.error_msg}")
@@ -187,7 +226,7 @@ def bao_rows(result) -> list[dict[str, str]]:
     return rows
 
 
-def baostock_kline_locked(code: str, period: str, limit: int, days_override: int | None = None) -> list[dict[str, Any]]:
+def baostock_kline_locked(code: str, period: str, limit: int, days_override: Optional[int] = None) -> list[dict[str, Any]]:
     frequency_map = {"day": "d", "week": "w", "month": "m", "5min": "5", "15min": "15", "30min": "30", "60min": "60"}
     frequency = frequency_map.get(period)
     if not frequency:

@@ -110,6 +110,17 @@ async function handleDataSourceRequest({ type, source, code, codes, period, endT
       const mock = generateMockKLineDataForStock(code || '600519', 200, period as TimePeriod);
       return NextResponse.json({ success: true, data: mock, fallback: true });
     }
+    if (type === 'quote' && (source === 'akshare' || source === 'baostock')) {
+      const codeList = codes.length > 0 ? codes : [code].filter(Boolean);
+      const fallbackQuotes = await fetchQuotes('sina', codeList);
+      if (Object.keys(fallbackQuotes).length > 0) {
+        return NextResponse.json({ success: true, data: fallbackQuotes, fallback: true, delayed: false });
+      }
+    }
+    if (type === 'stock-list' && (source === 'akshare' || source === 'baostock')) {
+      const fallbackStocks = await fetchStockList('sina');
+      return NextResponse.json({ success: true, data: fallbackStocks, fallback: true });
+    }
     return NextResponse.json({ success: false, error: String(err) }, { status: 502 });
   }
 }

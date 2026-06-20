@@ -53,6 +53,7 @@ import {
   clonePersistedSnapshot,
   getDrawingStorageKey,
   readPersistedOverlays,
+  remapDrawingDataIndexes,
   snapshotOverlays,
   writePersistedSnapshot,
   type PersistedOverlay,
@@ -447,10 +448,10 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     };
   }, [commitDrawingState]);
 
-  const applyDrawingSnapshot = useCallback((snapshot: PersistedOverlay[]) => {
+  const applyDrawingSnapshot = useCallback((snapshot: PersistedOverlay[], shouldPersist = true) => {
     const chart = chartRef.current;
     if (!chart) return;
-    const committedSnapshot = clonePersistedSnapshot(normalizePositionSnapshots(snapshot));
+    const committedSnapshot = clonePersistedSnapshot(normalizePositionSnapshots(remapDrawingDataIndexes(snapshot, dataRef.current)));
     const chartSnapshot = clonePersistedSnapshot(committedSnapshot);
     applyingSnapshotRef.current = true;
     try {
@@ -463,7 +464,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     }
     activeDrawingIdRef.current = null;
     committedSnapshotRef.current = committedSnapshot;
-    persistDrawingSnapshot(committedSnapshot);
+    if (shouldPersist) persistDrawingSnapshot(committedSnapshot);
     setDrawingCount(committedSnapshot.length);
     setActiveDrawingTool(null);
   }, [buildPersistedOverlay, persistDrawingSnapshot]);
@@ -529,7 +530,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     chart.subscribeAction('onVisibleRangeChange', handleVisibleRangeChange);
     chart.subscribeAction('onPaneDrag', handlePaneDrag);
 
-    const persistedOverlays = clonePersistedSnapshot(normalizePositionSnapshots(readPersistedOverlays(drawingStorageKey)));
+    const persistedOverlays = clonePersistedSnapshot(normalizePositionSnapshots(remapDrawingDataIndexes(readPersistedOverlays(drawingStorageKey), dataRef.current)));
     const chartOverlays = clonePersistedSnapshot(persistedOverlays);
     activeDrawingIdRef.current = null;
     committedSnapshotRef.current = persistedOverlays;
@@ -753,14 +754,19 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     chartRef.current?.setStyles(getChartThemeStyles(theme));
   }, [mounted, theme]);
 
-  // 数据更新通过官方 resetData 重新触发 dataLoader，不重建图表实例。
+  // 数据源切换后按时间戳重映射覆盖物的数据索引，避免不同源的历史长度让画线错位。
   useEffect(() => {
     if (!mounted || dataVersion === 0) return;
     const chart = chartRef.current;
     if (!chart) return;
+    const drawingSnapshot = clonePersistedSnapshot(committedSnapshotRef.current);
     chart.resetData();
-    window.setTimeout(() => restoreCurrentChartView(chart), 0);
-  }, [dataVersion, mounted, restoreCurrentChartView]);
+    window.setTimeout(() => {
+      if (chartRef.current !== chart) return;
+      applyDrawingSnapshot(drawingSnapshot, false);
+      restoreCurrentChartView(chart);
+    }, 0);
+  }, [applyDrawingSnapshot, dataVersion, mounted, restoreCurrentChartView]);
 
   useEffect(() => {
     if (!mounted) return;

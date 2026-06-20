@@ -20,7 +20,8 @@ async function requestBridge<T>(path: string, params: Record<string, string>): P
   const response = await fetch(url, {
     cache: 'no-store',
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    signal: AbortSignal.timeout(30_000),
+    // AKShare 的新浪全市场降级接口首次拉取约需 30 秒，后续由服务端缓存命中。
+    signal: AbortSignal.timeout(60_000),
   });
   const payload = await response.json() as BridgeResponse<T>;
   if (!response.ok || !payload.success) {
