@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { dispose, init } from 'klinecharts';
-import type { Chart, KLineData as KLineChartData, OverlayCreate, PeriodType } from 'klinecharts';
+import type {
+  Chart,
+  DeepPartial,
+  KLineData as KLineChartData,
+  OverlayCreate,
+  PeriodType,
+  Styles,
+} from 'klinecharts';
 import {
   AlignHorizontalJustifyCenter,
   AlignVerticalJustifyCenter,
@@ -40,6 +47,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
+  clonePersistedSnapshot,
   getDrawingStorageKey,
   readPersistedOverlays,
   snapshotOverlays,
@@ -129,11 +137,64 @@ function getPeriodLabel(period: TimePeriod): string {
   return period;
 }
 
+function getChartThemeStyles(theme: 'dark' | 'light'): DeepPartial<Styles> {
+  const isLightTheme = theme === 'light';
+  const chartGridColor = isLightTheme ? '#d1d1d6' : '#38383a';
+  const chartTextColor = isLightTheme ? '#636366' : '#8e8e93';
+  const chartCrosshairTextColor = isLightTheme ? '#3a3a3c' : '#aeaeb2';
+
+  return {
+    grid: {
+      horizontal: { style: 'dashed', size: 1, color: chartGridColor, dashedValue: [4, 4] },
+      vertical: { style: 'dashed', size: 1, color: chartGridColor, dashedValue: [4, 4] },
+    },
+    candle: {
+      type: 'candle_solid',
+      bar: {
+        upColor: '#30d158',
+        downColor: '#ff453a',
+        noChangeColor: chartTextColor,
+      },
+      priceMark: {
+        show: true,
+        high: { show: true, color: chartTextColor, textOffset: 4, textSize: 11 },
+        low: { show: true, color: chartTextColor, textOffset: 4, textSize: 11 },
+      },
+      tooltip: { showRule: 'always', showType: 'standard' },
+    },
+    xAxis: {
+      axisLine: { show: true, color: chartGridColor, size: 1 },
+      tickText: { color: chartTextColor, size: 11 },
+      tickLine: { show: true, color: chartGridColor, size: 1 },
+    },
+    yAxis: {
+      axisLine: { show: true, color: chartGridColor, size: 1 },
+      tickText: { color: chartTextColor, size: 11 },
+      tickLine: { show: true, color: chartGridColor, size: 1 },
+    },
+    separator: { color: chartGridColor, size: 1 },
+    crosshair: {
+      show: true,
+      horizontal: {
+        show: true,
+        line: { color: chartTextColor, size: 1, style: 'dashed', dashedValue: [4, 4] },
+        text: { show: true, color: chartCrosshairTextColor, size: 11, style: 'fill' },
+      },
+      vertical: {
+        show: true,
+        line: { color: chartTextColor, size: 1, style: 'dashed', dashedValue: [4, 4] },
+        text: { show: true, color: chartCrosshairTextColor, size: 11, style: 'fill' },
+      },
+    },
+  };
+}
+
 export default function KLineChart({ stockCode, stockName, currentPrice, theme }: KLineChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<Chart | null>(null);
   const dataRef = useRef<KLineChartData[]>([]);
   const activeDrawingIdRef = useRef<string | null>(null);
+  const applyingSnapshotRef = useRef(false);
   const committedSnapshotRef = useRef<PersistedOverlay[]>([]);
   const undoStackRef = useRef<PersistedOverlay[][]>([]);
   const redoStackRef = useRef<PersistedOverlay[][]>([]);
@@ -196,12 +257,16 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
   // 用 ref 跟踪最新指标值，initChart 通过 ref 读取而非直接依赖
   const mainIndicatorRef = useRef(mainIndicator);
   const subIndicatorRef = useRef(subIndicators);
+  const themeRef = useRef(theme);
   useEffect(() => {
     mainIndicatorRef.current = mainIndicator;
   }, [mainIndicator]);
   useEffect(() => {
     subIndicatorRef.current = subIndicators;
   }, [subIndicators]);
+  useEffect(() => {
+    themeRef.current = theme;
+  }, [theme]);
 
   const getCurrentDrawingSnapshot = useCallback((): PersistedOverlay[] => {
     const chart = chartRef.current;
@@ -220,7 +285,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     const previousSnapshot = committedSnapshotRef.current;
     if (JSON.stringify(nextSnapshot) === JSON.stringify(previousSnapshot)) return;
 
-    undoStackRef.current.push(previousSnapshot);
+    undoStackRef.current.push(clonePersistedSnapshot(previousSnapshot));
     if (undoStackRef.current.length > 50) undoStackRef.current.shift();
     redoStackRef.current = [];
     committedSnapshotRef.current = nextSnapshot;
@@ -233,19 +298,29 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     ...overlay,
     groupId: DRAWING_GROUP_ID,
     onPressedMoveEnd: () => window.setTimeout(commitDrawingState, 0),
+    onRemoved: () => {
+      if (!applyingSnapshotRef.current) window.setTimeout(commitDrawingState, 0);
+    },
   }), [commitDrawingState]);
 
   const applyDrawingSnapshot = useCallback((snapshot: PersistedOverlay[]) => {
     const chart = chartRef.current;
     if (!chart) return;
-    chart.removeOverlay({ groupId: DRAWING_GROUP_ID });
-    if (snapshot.length > 0) {
-      chart.createOverlay(snapshot.map(buildPersistedOverlay));
+    const committedSnapshot = clonePersistedSnapshot(snapshot);
+    const chartSnapshot = clonePersistedSnapshot(snapshot);
+    applyingSnapshotRef.current = true;
+    try {
+      chart.removeOverlay({ groupId: DRAWING_GROUP_ID });
+      if (chartSnapshot.length > 0) {
+        chart.createOverlay(chartSnapshot.map(buildPersistedOverlay));
+      }
+    } finally {
+      applyingSnapshotRef.current = false;
     }
     activeDrawingIdRef.current = null;
-    committedSnapshotRef.current = snapshot;
-    writePersistedSnapshot(drawingStorageKey, snapshot);
-    setDrawingCount(snapshot.length);
+    committedSnapshotRef.current = committedSnapshot;
+    writePersistedSnapshot(drawingStorageKey, committedSnapshot);
+    setDrawingCount(committedSnapshot.length);
     setActiveDrawingTool(null);
   }, [buildPersistedOverlay, drawingStorageKey]);
 
@@ -259,64 +334,10 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
       chartRef.current = null;
     }
 
-    const isLightTheme = theme === 'light';
-    const chartGridColor = isLightTheme ? '#d1d1d6' : '#38383a';
-    const chartTextColor = isLightTheme ? '#636366' : '#8e8e93';
-    const chartCrosshairTextColor = isLightTheme ? '#3a3a3c' : '#aeaeb2';
-
     const chart = init(containerRef.current, {
       locale: 'zh-CN',
       hotkey: { enabled: true },
-      styles: {
-        grid: {
-          horizontal: { style: 'dashed', size: 1, color: chartGridColor, dashedValue: [4, 4] },
-          vertical: { style: 'dashed', size: 1, color: chartGridColor, dashedValue: [4, 4] },
-        },
-        candle: {
-          type: 'candle_solid',
-          bar: {
-            upColor: '#30d158',
-            downColor: '#ff453a',
-            noChangeColor: chartTextColor,
-          },
-          priceMark: {
-            show: true,
-            high: { show: true, color: chartTextColor, textOffset: 4, textSize: 11 },
-            low: { show: true, color: chartTextColor, textOffset: 4, textSize: 11 },
-          },
-          tooltip: {
-            showRule: 'always',
-            showType: 'standard',
-          },
-        },
-        xAxis: {
-          axisLine: { show: true, color: chartGridColor, size: 1 },
-          tickText: { color: chartTextColor, size: 11 },
-          tickLine: { show: true, color: chartGridColor, size: 1 },
-        },
-        yAxis: {
-          axisLine: { show: true, color: chartGridColor, size: 1 },
-          tickText: { color: chartTextColor, size: 11 },
-          tickLine: { show: true, color: chartGridColor, size: 1 },
-        },
-        separator: {
-          color: chartGridColor,
-          size: 1,
-        },
-        crosshair: {
-          show: true,
-          horizontal: {
-            show: true,
-            line: { color: chartTextColor, size: 1, style: 'dashed' as const, dashedValue: [4, 4] },
-            text: { show: true, color: chartCrosshairTextColor, size: 11, style: 'fill' as const },
-          },
-          vertical: {
-            show: true,
-            line: { color: chartTextColor, size: 1, style: 'dashed' as const, dashedValue: [4, 4] },
-            text: { show: true, color: chartCrosshairTextColor, size: 11, style: 'fill' as const },
-          },
-        },
-      },
+      styles: getChartThemeStyles(themeRef.current),
     });
 
     if (!chart) return;
@@ -348,17 +369,18 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
       chart.createIndicator(indicator);
     });
 
-    const persistedOverlays = readPersistedOverlays(drawingStorageKey);
+    const persistedOverlays = clonePersistedSnapshot(readPersistedOverlays(drawingStorageKey));
+    const chartOverlays = clonePersistedSnapshot(persistedOverlays);
     activeDrawingIdRef.current = null;
     committedSnapshotRef.current = persistedOverlays;
     undoStackRef.current = [];
     redoStackRef.current = [];
     if (persistedOverlays.length > 0) {
-      chart.createOverlay(persistedOverlays.map(buildPersistedOverlay));
+      chart.createOverlay(chartOverlays.map(buildPersistedOverlay));
     }
     setDrawingCount(persistedOverlays.length);
     syncHistoryControls();
-  }, [stockCode, activePeriod, dataVersion, drawingStorageKey, buildPersistedOverlay, syncHistoryControls, theme]);
+  }, [stockCode, activePeriod, drawingStorageKey, buildPersistedOverlay, syncHistoryControls]);
 
   const toggleMainIndicator = useCallback((indicator: TechnicalIndicator) => {
     setMainIndicator((current) => (current === indicator ? null : indicator));
@@ -391,6 +413,9 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
         window.setTimeout(commitDrawingState, 0);
       },
       onPressedMoveEnd: () => window.setTimeout(commitDrawingState, 0),
+      onRemoved: () => {
+        if (!applyingSnapshotRef.current) window.setTimeout(commitDrawingState, 0);
+      },
     });
     activeDrawingIdRef.current = typeof overlayId === 'string' ? overlayId : null;
   }, [commitDrawingState]);
@@ -409,7 +434,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
 
     const previousSnapshot = undoStackRef.current.pop();
     if (!previousSnapshot) return;
-    redoStackRef.current.push(committedSnapshotRef.current);
+    redoStackRef.current.push(clonePersistedSnapshot(committedSnapshotRef.current));
     applyDrawingSnapshot(previousSnapshot);
     syncHistoryControls();
   }, [applyDrawingSnapshot, syncHistoryControls]);
@@ -417,7 +442,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
   const redoDrawing = useCallback(() => {
     const nextSnapshot = redoStackRef.current.pop();
     if (!nextSnapshot) return;
-    undoStackRef.current.push(committedSnapshotRef.current);
+    undoStackRef.current.push(clonePersistedSnapshot(committedSnapshotRef.current));
     applyDrawingSnapshot(nextSnapshot);
     syncHistoryControls();
   }, [applyDrawingSnapshot, syncHistoryControls]);
@@ -428,7 +453,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     chart.removeOverlay({ groupId: DRAWING_GROUP_ID });
     activeDrawingIdRef.current = null;
     setActiveDrawingTool(null);
-    commitDrawingState();
+    window.setTimeout(commitDrawingState, 0);
   }, [commitDrawingState]);
 
   const exportChartImage = useCallback(() => {
@@ -463,6 +488,18 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
       }
     };
   }, [mounted, initChart]);
+
+  // KLineChart 官方支持增量 setStyles；切换主题时保留图表、覆盖物和历史栈。
+  useEffect(() => {
+    if (!mounted) return;
+    chartRef.current?.setStyles(getChartThemeStyles(theme));
+  }, [mounted, theme]);
+
+  // 数据更新通过官方 resetData 重新触发 dataLoader，不重建图表实例。
+  useEffect(() => {
+    if (!mounted || dataVersion === 0) return;
+    chartRef.current?.resetData();
+  }, [dataVersion, mounted]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -583,6 +620,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
 
       <div
         ref={containerRef}
+        data-testid="kline-chart-canvas"
         className={
           isFocusMode
             ? 'min-h-0 w-full flex-1 bg-background'

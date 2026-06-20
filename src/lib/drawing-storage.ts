@@ -41,7 +41,11 @@ export function snapshotOverlays(overlays: Overlay[]): PersistedOverlay[] {
     lock: overlay.lock,
     visible: overlay.visible,
   }));
-  return JSON.parse(JSON.stringify(persisted)) as PersistedOverlay[];
+  return clonePersistedSnapshot(persisted);
+}
+
+export function clonePersistedSnapshot(snapshot: PersistedOverlay[]): PersistedOverlay[] {
+  return JSON.parse(JSON.stringify(snapshot)) as PersistedOverlay[];
 }
 
 export function writePersistedSnapshot(storageKey: string, snapshot: PersistedOverlay[]): number {
