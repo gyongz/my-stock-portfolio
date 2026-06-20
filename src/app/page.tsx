@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { Plus, LayoutDashboard, ChevronDown, ChevronLeft, Star, WalletCards } from 'lucide-react';
+import { Plus, LayoutDashboard, ChevronDown, ChevronLeft, Moon, Star, Sun, WalletCards } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -29,7 +29,7 @@ import { useWatchlist } from '@/hooks/use-watchlist';
 const KLineChart = dynamic(() => import('@/components/kline-chart'), {
   ssr: false,
   loading: () => (
-    <div className="flex items-center justify-center h-full min-h-[400px] text-[#98989d]">
+    <div className="flex items-center justify-center h-full min-h-[400px] text-muted-foreground">
       <div className="flex flex-col items-center gap-2">
         <div className="w-6 h-6 border-2 border-[#30d158] border-t-transparent rounded-full animate-spin" />
         <span className="text-sm">加载图表中...</span>
@@ -72,6 +72,15 @@ function HomeContent() {
   const [isWideLayout, setIsWideLayout] = useState(false);
   const [marketStatus, setMarketStatus] = useState<'loading' | 'live' | 'fallback'>('loading');
   const [marketError, setMarketError] = useState<string | null>(null);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('portfolio-theme');
+    const initialTheme = savedTheme === 'light' ? 'light' : 'dark';
+    setTheme(initialTheme);
+    document.documentElement.classList.toggle('dark', initialTheme === 'dark');
+    document.documentElement.classList.toggle('light', initialTheme === 'light');
+  }, []);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(min-width: 1280px)');
@@ -82,6 +91,14 @@ function HomeContent() {
   }, []);
 
   const isSidePanelCollapsed = sideCollapsed && isWideLayout;
+
+  const toggleTheme = useCallback(() => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    localStorage.setItem('portfolio-theme', nextTheme);
+    document.documentElement.classList.toggle('dark', nextTheme === 'dark');
+    document.documentElement.classList.toggle('light', nextTheme === 'light');
+  }, [theme]);
 
   /** 打开添加持仓弹窗 */
   const handleOpenAdd = useCallback(() => {
@@ -195,23 +212,23 @@ function HomeContent() {
   }, [setDataSource]);
 
   return (
-    <div className="min-h-screen bg-[#1c1c1e] flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* 顶栏 - Apple 风格 */}
-      <header className="bg-[#1c1c1e]/80 backdrop-blur-xl sticky top-0 z-10 border-b border-white/[0.06]">
+      <header className="bg-background/80 backdrop-blur-xl sticky top-0 z-10 border-b border-border/60">
         <div className="flex h-11 items-center justify-between gap-2 px-3 sm:px-5">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <div className="flex shrink-0 items-center gap-2">
-              <div className="w-7 h-7 shrink-0 rounded-lg bg-[#30d158]/10 flex items-center justify-center">
+              <div className="hidden w-7 h-7 shrink-0 rounded-lg bg-[#30d158]/10 items-center justify-center min-[400px]:flex">
                 <LayoutDashboard className="w-4 h-4 text-[#30d158]" />
               </div>
-              <h1 className="text-[15px] font-semibold text-white tracking-tight hidden sm:block">
+              <h1 className="text-[15px] font-semibold text-foreground tracking-tight hidden sm:block">
                 个人持仓
               </h1>
             </div>
             <div className="flex min-w-0 items-center gap-1.5">
               <span
                 className={`hidden whitespace-nowrap text-[11px] px-2 py-0.5 rounded-md sm:inline-flex ${
-                  marketStatus === 'live' ? 'bg-[#30d158]/10 text-[#30d158]' : 'bg-white/[0.06] text-[#98989d]'
+                  marketStatus === 'live' ? 'bg-[#30d158]/10 text-[#30d158]' : 'bg-muted/60 text-muted-foreground'
                 }`}
                 title={marketError || undefined}
               >
@@ -225,6 +242,16 @@ function HomeContent() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}
+              title={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}
+              className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
             <ImportExport holdings={holdings} onImport={importHoldings} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -239,7 +266,7 @@ function HomeContent() {
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="w-36 rounded-xl border-white/[0.08] bg-[#2c2c2e] p-1.5 text-white shadow-xl"
+                className="w-36 rounded-xl border-border bg-card p-1.5 text-foreground shadow-xl"
               >
                 <DropdownMenuItem
                   onSelect={() => setWatchlistDialogOpen(true)}
@@ -250,7 +277,7 @@ function HomeContent() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={handleOpenAdd}
-                  className="rounded-lg px-2.5 py-2 text-xs focus:bg-white/[0.08] focus:text-white"
+                  className="rounded-lg px-2.5 py-2 text-xs focus:bg-muted focus:text-foreground"
                 >
                   <WalletCards />
                   添加持仓
@@ -276,19 +303,20 @@ function HomeContent() {
       <div className="flex-1 flex flex-col xl:flex-row gap-0 relative overflow-hidden">
         {/* KLine 图表区域 */}
         {showChart && (
-          <div className={`bg-[#1c1c1e] relative min-w-0 ${
+          <div className={`bg-background relative min-w-0 ${
             isSidePanelCollapsed ? 'xl:flex-1' : 'xl:w-[65%]'
           }`}>
             <KLineChart
               stockCode={displayCode}
               stockName={displayName}
               currentPrice={displayPrice}
+              theme={theme}
             />
             {/* 收起/展开侧栏按钮 */}
             <button
               onClick={() => setSideCollapsed((v) => !v)}
               className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 w-5 h-10 rounded-r-lg flex items-center justify-center
-                         bg-[#2c2c2e] text-[#98989d] hover:text-white hover:bg-[#3a3a3c]
+                         bg-card text-muted-foreground hover:text-foreground hover:bg-muted
                          transition-colors cursor-pointer hidden xl:flex"
               title={isSidePanelCollapsed ? '展开持仓列表' : '收起持仓列表'}
             >
@@ -298,17 +326,17 @@ function HomeContent() {
         )}
 
         {/* 持仓 / 自选列表区域 */}
-        <div className={`flex flex-col bg-[#1c1c1e] ${
+        <div className={`flex flex-col bg-background ${
           isSidePanelCollapsed ? 'w-full xl:w-[180px] xl:shrink-0' : 'w-full min-w-0 xl:flex-1'
         }`}>
           <Tabs value={activeList} onValueChange={(value) => setActiveList(value as 'holdings' | 'watchlist')} className="min-h-0 flex-1 gap-0">
             <div className="flex items-center justify-between gap-2 px-4 py-2">
-              <TabsList className="h-8 bg-white/[0.05] p-0.5">
-                <TabsTrigger value="holdings" className="h-7 px-2.5 text-xs data-[state=active]:bg-white/[0.08]">
-                  持仓 <span className="text-[10px] text-[#98989d]">{holdings.length}</span>
+              <TabsList className="h-8 bg-muted/50 p-0.5">
+                <TabsTrigger value="holdings" className="h-7 px-2.5 text-xs data-[state=active]:bg-muted">
+                  持仓 <span className="text-[10px] text-muted-foreground">{holdings.length}</span>
                 </TabsTrigger>
-                <TabsTrigger value="watchlist" className="h-7 px-2.5 text-xs data-[state=active]:bg-white/[0.08]">
-                  自选 <span className="text-[10px] text-[#98989d]">{watchlist.length}</span>
+                <TabsTrigger value="watchlist" className="h-7 px-2.5 text-xs data-[state=active]:bg-muted">
+                  自选 <span className="text-[10px] text-muted-foreground">{watchlist.length}</span>
                 </TabsTrigger>
               </TabsList>
               <div className="flex items-center gap-1">
@@ -326,7 +354,7 @@ function HomeContent() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 text-xs text-[#98989d] hover:text-white xl:hidden"
+                  className="h-7 text-xs text-muted-foreground hover:text-foreground xl:hidden"
                   onClick={() => setShowChart(!showChart)}
                 >
                   {showChart ? '隐藏图表' : '显示图表'}
@@ -356,7 +384,7 @@ function HomeContent() {
             </TabsContent>
 
             {!isSidePanelCollapsed && (
-              <div className="border-t border-white/[0.06] px-4 py-2.5 text-center text-[11px] text-[#98989d]">
+              <div className="border-t border-border/60 px-4 py-2.5 text-center text-[11px] text-muted-foreground">
                 点击股票联动 K 线 · 行情随数据源自动刷新
               </div>
             )}

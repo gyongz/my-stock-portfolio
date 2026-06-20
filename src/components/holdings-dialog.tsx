@@ -104,12 +104,12 @@ export default function HoldingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[#2c2c2e] border-white/[0.06] text-white sm:max-w-md rounded-2xl shadow-none">
+      <DialogContent className="bg-card border-border/60 text-foreground sm:max-w-md rounded-2xl shadow-none">
         <DialogHeader>
-          <DialogTitle className="text-white text-[17px] font-semibold tracking-tight">
+          <DialogTitle className="text-foreground text-[17px] font-semibold tracking-tight">
             {editingHolding ? '编辑持仓' : '添加持仓'}
           </DialogTitle>
-          <DialogDescription className="text-[#98989d] text-sm">
+          <DialogDescription className="text-muted-foreground text-sm">
             {editingHolding ? '修改持仓记录信息' : '输入新的持仓记录信息'}
           </DialogDescription>
         </DialogHeader>
@@ -117,7 +117,7 @@ export default function HoldingsDialog({
         <div className="space-y-4">
           {/* 股票搜索选择（代码或名称） */}
           <div className="space-y-1.5">
-            <Label htmlFor="stock-search" className="text-white/80 text-sm font-medium">
+            <Label htmlFor="stock-search" className="text-foreground/80 text-sm font-medium">
               股票
             </Label>
             <StockSearch
@@ -129,7 +129,7 @@ export default function HoldingsDialog({
 
           {/* 股票名称 */}
           <div className="space-y-1.5">
-            <Label htmlFor="stock-name" className="text-white/80 text-sm font-medium">
+            <Label htmlFor="stock-name" className="text-foreground/80 text-sm font-medium">
               股票名称
             </Label>
             <Input
@@ -137,14 +137,14 @@ export default function HoldingsDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="输入股票名称"
-              className="bg-[#3a3a3c] border-0 text-white placeholder:text-[#98989d] rounded-xl h-10"
+              className="bg-muted border-0 text-foreground placeholder:text-muted-foreground rounded-xl h-10"
             />
             {errors.name && <p className="text-xs text-[#ff453a]">{errors.name}</p>}
           </div>
 
           {/* 持仓数量 */}
           <div className="space-y-1.5">
-            <Label htmlFor="quantity" className="text-white/80 text-sm font-medium">
+            <Label htmlFor="quantity" className="text-foreground/80 text-sm font-medium">
               持仓数量
             </Label>
             <Input
@@ -155,14 +155,14 @@ export default function HoldingsDialog({
               placeholder="例如: 1000"
               min="1"
               step="1"
-              className="bg-[#3a3a3c] border-0 text-white placeholder:text-[#98989d] rounded-xl h-10"
+              className="bg-muted border-0 text-foreground placeholder:text-muted-foreground rounded-xl h-10"
             />
             {errors.quantity && <p className="text-xs text-[#ff453a]">{errors.quantity}</p>}
           </div>
 
           {/* 买入价格 */}
           <div className="space-y-1.5">
-            <Label htmlFor="buy-price" className="text-white/80 text-sm font-medium">
+            <Label htmlFor="buy-price" className="text-foreground/80 text-sm font-medium">
               买入均价
             </Label>
             <Input
@@ -173,14 +173,14 @@ export default function HoldingsDialog({
               placeholder="例如: 58.50"
               min="0.01"
               step="0.01"
-              className="bg-[#3a3a3c] border-0 text-white placeholder:text-[#98989d] rounded-xl h-10"
+              className="bg-muted border-0 text-foreground placeholder:text-muted-foreground rounded-xl h-10"
             />
             {errors.buyPrice && <p className="text-xs text-[#ff453a]">{errors.buyPrice}</p>}
           </div>
 
           {/* 当前价格 */}
           <div className="space-y-1.5">
-            <Label htmlFor="current-price" className="text-white/80 text-sm font-medium">
+            <Label htmlFor="current-price" className="text-foreground/80 text-sm font-medium">
               当前价格
             </Label>
             <Input
@@ -191,7 +191,7 @@ export default function HoldingsDialog({
               placeholder="例如: 65.80"
               min="0.01"
               step="0.01"
-              className="bg-[#3a3a3c] border-0 text-white placeholder:text-[#98989d] rounded-xl h-10"
+              className="bg-muted border-0 text-foreground placeholder:text-muted-foreground rounded-xl h-10"
             />
             {errors.currentPrice && <p className="text-xs text-[#ff453a]">{errors.currentPrice}</p>}
           </div>
@@ -201,7 +201,7 @@ export default function HoldingsDialog({
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}
-            className="text-[#98989d] hover:text-white hover:bg-white/[0.08] rounded-xl h-9 px-4"
+            className="text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl h-9 px-4"
           >
             取消
           </Button>

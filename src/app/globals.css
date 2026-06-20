@@ -83,13 +83,42 @@
   --sidebar-ring: #30d158;
 }
 
+:root.light {
+  --background: #f5f5f7;
+  --foreground: #1d1d1f;
+  --card: #ffffff;
+  --card-foreground: #1d1d1f;
+  --popover: #ffffff;
+  --popover-foreground: #1d1d1f;
+  --primary: #248a3d;
+  --primary-foreground: #ffffff;
+  --secondary: #f2f2f7;
+  --secondary-foreground: #1d1d1f;
+  --muted: #e5e5ea;
+  --muted-foreground: #6e6e73;
+  --accent: #e5e5ea;
+  --accent-foreground: #1d1d1f;
+  --destructive: #d70015;
+  --border: #d1d1d6;
+  --input: #d1d1d6;
+  --ring: #248a3d;
+  --sidebar: #f5f5f7;
+  --sidebar-foreground: #1d1d1f;
+  --sidebar-primary: #248a3d;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e5e5ea;
+  --sidebar-accent-foreground: #1d1d1f;
+  --sidebar-border: #d1d1d6;
+  --sidebar-ring: #248a3d;
+}
+
 /* 全局样式 */
 html, body {
   height: 100%;
   margin: 0;
   padding: 0;
-  background-color: #1c1c1e;
-  color: #ffffff;
+  background-color: var(--background);
+  color: var(--foreground);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -103,11 +132,11 @@ html, body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: color-mix(in srgb, var(--foreground) 15%, transparent);
   border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: color-mix(in srgb, var(--foreground) 25%, transparent);
 }
 
 /* 选中文字颜色 */
@@ -124,6 +153,6 @@ html, body {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: color-mix(in srgb, var(--foreground) 15%, transparent);
   border-radius: 2px;
 }

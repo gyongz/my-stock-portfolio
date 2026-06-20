@@ -100,7 +100,7 @@ export default function ImportExport({ holdings, onImport }: ImportExportProps) 
         size="sm"
         onClick={handleExport}
         aria-label="导出持仓"
-        className="h-8 w-8 rounded-lg p-0 text-[#98989d] hover:bg-white/[0.08] hover:text-white sm:w-auto sm:px-2.5"
+        className="h-8 w-8 rounded-lg p-0 text-muted-foreground hover:bg-muted hover:text-foreground sm:w-auto sm:px-2.5"
       >
         <Download className="w-3.5 h-3.5 sm:mr-1" />
         <span className="hidden sm:inline">导出</span>
@@ -110,7 +110,7 @@ export default function ImportExport({ holdings, onImport }: ImportExportProps) 
         size="sm"
         onClick={handleImport}
         aria-label="导入持仓"
-        className="h-8 w-8 rounded-lg p-0 text-[#98989d] hover:bg-white/[0.08] hover:text-white sm:w-auto sm:px-2.5"
+        className="h-8 w-8 rounded-lg p-0 text-muted-foreground hover:bg-muted hover:text-foreground sm:w-auto sm:px-2.5"
       >
         <Upload className="w-3.5 h-3.5 sm:mr-1" />
         <span className="hidden sm:inline">导入</span>

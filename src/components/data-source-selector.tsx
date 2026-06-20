@@ -37,8 +37,8 @@ export default function DataSourceSelector({ currentSource, onSourceChange, comp
         <button
           onClick={() => setOpen(!open)}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg
-                     bg-[#2c2c2e] hover:bg-[#3a3a3c] transition-colors duration-150
-                     text-xs text-[#98989d] hover:text-white"
+                     bg-card hover:bg-muted transition-colors duration-150
+                     text-xs text-muted-foreground hover:text-foreground"
         >
           <Database size={13} />
           <span>{current.name}</span>
@@ -47,8 +47,8 @@ export default function DataSourceSelector({ currentSource, onSourceChange, comp
 
         {open && (
           <div className="absolute right-0 top-full mt-1 z-50 w-48 py-1
-                          bg-[#2c2c2e] rounded-xl shadow-xl
-                          border border-[#3a3a3c] overflow-hidden">
+                          bg-card rounded-xl shadow-xl
+                          border border-border overflow-hidden">
             {DATA_SOURCES.map((ds) => (
               <button
                 key={ds.id}
@@ -56,7 +56,7 @@ export default function DataSourceSelector({ currentSource, onSourceChange, comp
                 className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors
                            ${ds.id === currentSource
                              ? 'text-blue-300 bg-blue-500/10'
-                             : 'text-[#98989d] hover:text-white hover:bg-white/5'}`}
+                             : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
               >
                 <span className="flex-1 text-left">{ds.name}</span>
                 {ds.id === currentSource && <Check size={13} className="text-blue-300" />}
@@ -74,19 +74,19 @@ export default function DataSourceSelector({ currentSource, onSourceChange, comp
       <button
         onClick={() => setOpen(!open)}
         className="flex max-w-full items-center gap-1.5 whitespace-nowrap px-2 py-2 rounded-xl sm:gap-2 sm:px-3
-                   bg-[#2c2c2e] hover:bg-[#3a3a3c] transition-colors duration-150
-                   text-sm text-white"
+                   bg-card hover:bg-muted transition-colors duration-150
+                   text-sm text-foreground"
       >
         <Database size={14} className="shrink-0" />
-        <span className="truncate">{current.name}</span>
-        <span className="ml-1 hidden text-xs text-[#98989d] lg:inline">{current.description}</span>
-        <ChevronDown size={14} className={`shrink-0 text-[#98989d] transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
+        <span className="hidden truncate min-[360px]:inline">{current.name}</span>
+        <span className="ml-1 hidden text-xs text-muted-foreground lg:inline">{current.description}</span>
+        <ChevronDown size={14} className={`shrink-0 text-muted-foreground transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
         <div className="absolute left-0 top-full mt-1 z-50 w-64 py-1
-                        bg-[#2c2c2e] rounded-xl shadow-xl
-                        border border-[#3a3a3c] overflow-hidden">
+                        bg-card rounded-xl shadow-xl
+                        border border-border overflow-hidden">
           {DATA_SOURCES.map((ds) => (
             <button
               key={ds.id}
@@ -94,25 +94,25 @@ export default function DataSourceSelector({ currentSource, onSourceChange, comp
               className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors
                          ${ds.id === currentSource
                            ? 'text-blue-300 bg-blue-500/10'
-                           : 'text-[#98989d] hover:text-white hover:bg-white/5'}`}
+                           : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
             >
               <div className="flex-1 text-left">
-                <div className={ds.id === currentSource ? 'text-white font-medium' : ''}>
+                <div className={ds.id === currentSource ? 'text-foreground font-medium' : ''}>
                   {ds.name}
                 </div>
-                <div className="text-xs text-[#98989d] mt-0.5">{ds.description}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{ds.description}</div>
               </div>
               {ds.id === currentSource && <Check size={14} className="text-blue-300" />}
             </button>
           ))}
-          <div className="border-t border-[#3a3a3c] mt-1 pt-1">
+          <div className="border-t border-border mt-1 pt-1">
             <button
               onClick={() => {
                 onRefresh?.();
                 setOpen(false);
               }}
-              className="w-full flex items-center gap-2 px-4 py-2 text-xs text-[#98989d]
-                         hover:text-white hover:bg-white/5 transition-colors"
+              className="w-full flex items-center gap-2 px-4 py-2 text-xs text-muted-foreground
+                         hover:text-foreground hover:bg-muted/50 transition-colors"
             >
               <RefreshCw size={12} />
               重新加载数据

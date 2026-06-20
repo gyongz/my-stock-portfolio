@@ -79,8 +79,8 @@ export default function StockSearch({ value, onSelect, disabled }: StockSearchPr
           aria-expanded={open}
           disabled={disabled}
           className={cn(
-            'w-full justify-between bg-[#3a3a3c] border-0 text-white rounded-xl h-10 px-3 font-normal hover:bg-[#3a3a3c]/80',
-            !selectedStock && 'text-[#98989d]'
+            'w-full justify-between bg-muted border-0 text-foreground rounded-xl h-10 px-3 font-normal hover:bg-muted/80',
+            !selectedStock && 'text-muted-foreground'
           )}
         >
           {loading ? (
@@ -89,7 +89,7 @@ export default function StockSearch({ value, onSelect, disabled }: StockSearchPr
               加载股票列表...
             </span>
           ) : selectedStock ? (
-            <span className="text-white">
+            <span className="text-foreground">
               {selectedStock.code} - {selectedStock.name}
             </span>
           ) : (
@@ -102,22 +102,22 @@ export default function StockSearch({ value, onSelect, disabled }: StockSearchPr
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[--radix-popover-trigger-width] max-h-[min(400px,60vh)] p-0 bg-[#2c2c2e] border-white/[0.08] rounded-xl"
+        className="w-[--radix-popover-trigger-width] max-h-[min(400px,60vh)] p-0 bg-card border-border rounded-xl"
         align="start"
       >
         <Command>
           <CommandInput
             placeholder="输入股票代码或名称搜索..."
-            className="border-0 text-white placeholder:text-[#98989d] h-11"
+            className="border-0 text-foreground placeholder:text-muted-foreground h-11"
           />
           <CommandList className="max-h-[340px] overflow-y-auto custom-scrollbar">
             {loading && stocks.length === 0 ? (
-              <div className="flex items-center justify-center py-6 text-[#98989d] text-sm">
+              <div className="flex items-center justify-center py-6 text-muted-foreground text-sm">
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 加载中...
               </div>
             ) : (
-              <CommandEmpty className="py-6 text-center text-[#98989d] text-sm">
+              <CommandEmpty className="py-6 text-center text-muted-foreground text-sm">
                 未找到匹配的股票
               </CommandEmpty>
             )}
@@ -130,7 +130,7 @@ export default function StockSearch({ value, onSelect, disabled }: StockSearchPr
                     onSelect(stock);
                     setOpen(false);
                   }}
-                  className="flex items-center gap-3 px-3 py-2.5 text-white cursor-pointer aria-selected:bg-white/[0.08]"
+                  className="flex items-center gap-3 px-3 py-2.5 text-foreground cursor-pointer aria-selected:bg-muted"
                 >
                   <Check
                     className={cn(
@@ -140,10 +140,10 @@ export default function StockSearch({ value, onSelect, disabled }: StockSearchPr
                   />
                   <div className="flex flex-col min-w-0">
                     <span className="text-sm font-medium truncate">{stock.name}</span>
-                    <span className="text-xs text-[#98989d]">{stock.code}</span>
+                    <span className="text-xs text-muted-foreground">{stock.code}</span>
                   </div>
                   {stock.yesterdayClose && stock.yesterdayClose > 0 && (
-                    <span className="ml-auto text-xs text-[#98989d] tabular-nums">
+                    <span className="ml-auto text-xs text-muted-foreground tabular-nums">
                       {stock.yesterdayClose.toFixed(2)}
                     </span>
                   )}

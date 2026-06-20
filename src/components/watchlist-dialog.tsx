@@ -27,16 +27,16 @@ export default function WatchlistDialog({ open, onOpenChange, onSubmit }: Watchl
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border-white/[0.06] bg-[#2c2c2e] text-white shadow-none sm:max-w-md">
+      <DialogContent className="border-border/60 bg-card text-foreground shadow-none sm:max-w-md">
         <DialogHeader>
           <DialogTitle>添加自选</DialogTitle>
-          <DialogDescription className="text-[#98989d]">
+          <DialogDescription className="text-muted-foreground">
             搜索 A 股代码或名称，加入后将自动更新实时行情。
           </DialogDescription>
         </DialogHeader>
         <StockSearch value={selectedStock?.code || ''} onSelect={setSelectedStock} />
         <div className="mt-3 flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-[#98989d] hover:text-white">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-muted-foreground hover:text-foreground">
             取消
           </Button>
           <Button

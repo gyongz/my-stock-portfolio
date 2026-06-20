@@ -31,10 +31,10 @@ export default function HoldingsTable({
 }: HoldingsTableProps) {
   if (holdings.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-[#98989d]">
+      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
         <TrendingUp className="w-12 h-12 mb-3 opacity-30" />
         <p className="text-sm">暂无持仓记录</p>
-        <p className="text-xs mt-1 text-[#98989d]/70">点击上方 &quot;添加&quot; 开始</p>
+        <p className="text-xs mt-1 text-muted-foreground/70">点击上方 &quot;添加&quot; 开始</p>
       </div>
     );
   }
@@ -44,24 +44,24 @@ export default function HoldingsTable({
     return (
       <div>
         {/* 表头 */}
-        <div className="flex items-start justify-between gap-1 px-3 py-2 text-[11px] text-[#98989d] tracking-tight">
+        <div className="flex items-start justify-between gap-1 px-3 py-2 text-[11px] text-muted-foreground tracking-tight">
           <span>名称/代码</span>
           <span>现价/涨跌</span>
         </div>
-        <div className="border-t border-white/[0.06]" />
+        <div className="border-t border-border/60" />
         {holdings.map((h) => {
           return (
             <div
               key={h.id}
-              className={`px-3 py-2.5 cursor-pointer transition-colors duration-150 hover:bg-white/[0.04] ${
-                selectedId === h.id ? 'bg-white/[0.06]' : ''
+              className={`px-3 py-2.5 cursor-pointer transition-colors duration-150 hover:bg-muted/40 ${
+                selectedId === h.id ? 'bg-muted/60' : ''
               }`}
               onClick={() => onSelect(h)}
             >
               <div className="flex items-start justify-between gap-1">
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-white truncate">{h.name}</div>
-                  <div className="text-[11px] font-mono text-[#98989d] mt-0.5">{h.code}</div>
+                  <div className="text-sm font-medium text-foreground truncate">{h.name}</div>
+                  <div className="text-[11px] font-mono text-muted-foreground mt-0.5">{h.code}</div>
                 </div>
                 <div className="flex flex-col items-end shrink-0">
                   <span className={`text-sm font-semibold font-mono tabular-nums ${
@@ -85,15 +85,15 @@ export default function HoldingsTable({
     <div className="overflow-auto">
       <Table>
         <TableHeader>
-          <TableRow className="border-white/[0.06] hover:bg-transparent">
-            <TableHead className="text-[#98989d] text-[11px] font-medium h-8 px-3">名称</TableHead>
-            <TableHead className="text-[#98989d] text-[11px] font-medium h-8 px-3 text-right">代码</TableHead>
-            <TableHead className="text-[#98989d] text-[11px] font-medium h-8 px-3 text-right">持仓</TableHead>
-            <TableHead className="text-[#98989d] text-[11px] font-medium h-8 px-3 text-right hidden md:table-cell">成本价</TableHead>
-            <TableHead className="text-[#98989d] text-[11px] font-medium h-8 px-3 text-right">现价</TableHead>
-            <TableHead className="text-[#98989d] text-[11px] font-medium h-8 px-3 text-right">市值</TableHead>
-            <TableHead className="text-[#98989d] text-[11px] font-medium h-8 px-3 text-right">盈亏</TableHead>
-            <TableHead className="text-[#98989d] text-[11px] font-medium h-8 px-3 text-right w-[60px]">操作</TableHead>
+          <TableRow className="border-border/60 hover:bg-transparent">
+            <TableHead className="text-muted-foreground text-[11px] font-medium h-8 px-3">名称</TableHead>
+            <TableHead className="text-muted-foreground text-[11px] font-medium h-8 px-3 text-right">代码</TableHead>
+            <TableHead className="text-muted-foreground text-[11px] font-medium h-8 px-3 text-right">持仓</TableHead>
+            <TableHead className="text-muted-foreground text-[11px] font-medium h-8 px-3 text-right hidden md:table-cell">成本价</TableHead>
+            <TableHead className="text-muted-foreground text-[11px] font-medium h-8 px-3 text-right">现价</TableHead>
+            <TableHead className="text-muted-foreground text-[11px] font-medium h-8 px-3 text-right">市值</TableHead>
+            <TableHead className="text-muted-foreground text-[11px] font-medium h-8 px-3 text-right">盈亏</TableHead>
+            <TableHead className="text-muted-foreground text-[11px] font-medium h-8 px-3 text-right w-[60px]">操作</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -102,17 +102,17 @@ export default function HoldingsTable({
             return (
               <TableRow
                 key={h.id}
-                className={`cursor-pointer transition-colors duration-150 border-white/[0.04] ${
-                  selectedId === h.id ? 'bg-white/[0.06]' : ''
-                } hover:bg-white/[0.04]`}
+                className={`cursor-pointer transition-colors duration-150 border-border/40 ${
+                  selectedId === h.id ? 'bg-muted/60' : ''
+                } hover:bg-muted/40`}
                 onClick={() => onSelect(h)}
               >
-                <TableCell className="font-medium text-white text-sm px-3 py-2.5">{h.name}</TableCell>
-                <TableCell className="text-[#98989d] font-mono text-xs px-3 py-2.5 text-right">{h.code}</TableCell>
-                <TableCell className="text-white font-mono text-xs px-3 py-2.5 text-right tabular-nums">
+                <TableCell className="font-medium text-foreground text-sm px-3 py-2.5">{h.name}</TableCell>
+                <TableCell className="text-muted-foreground font-mono text-xs px-3 py-2.5 text-right">{h.code}</TableCell>
+                <TableCell className="text-foreground font-mono text-xs px-3 py-2.5 text-right tabular-nums">
                   {h.quantity.toLocaleString()}
                 </TableCell>
-                <TableCell className="text-[#98989d] font-mono text-xs px-3 py-2.5 text-right tabular-nums hidden md:table-cell">
+                <TableCell className="text-muted-foreground font-mono text-xs px-3 py-2.5 text-right tabular-nums hidden md:table-cell">
                   {h.buyPrice.toFixed(2)}
                 </TableCell>
                 <TableCell className={`font-mono text-xs px-3 py-2.5 text-right tabular-nums ${
@@ -120,7 +120,7 @@ export default function HoldingsTable({
                 }`}>
                   {h.currentPrice.toFixed(2)}
                 </TableCell>
-                <TableCell className="text-white font-mono text-xs px-3 py-2.5 text-right tabular-nums">
+                <TableCell className="text-foreground font-mono text-xs px-3 py-2.5 text-right tabular-nums">
                   {h.marketValue.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
                 </TableCell>
                 <TableCell className={`font-mono text-xs px-3 py-2.5 text-right tabular-nums ${
@@ -138,7 +138,7 @@ export default function HoldingsTable({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-[#98989d] hover:text-white hover:bg-white/[0.08]"
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted"
                       onClick={() => onEdit(h)}
                     >
                       <Pencil className="w-3.5 h-3.5" />
@@ -146,7 +146,7 @@ export default function HoldingsTable({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-[#98989d] hover:text-[#ff453a] hover:bg-[#ff453a]/10"
+                      className="h-7 w-7 text-muted-foreground hover:text-[#ff453a] hover:bg-[#ff453a]/10"
                       onClick={() => onDelete(h.id)}
                     >
                       <Trash2 className="w-3.5 h-3.5" />

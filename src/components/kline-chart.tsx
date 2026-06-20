@@ -119,6 +119,7 @@ interface KLineChartProps {
   stockCode: string;
   stockName: string;
   currentPrice: number;
+  theme: 'dark' | 'light';
 }
 
 function getPeriodLabel(period: TimePeriod): string {
@@ -128,7 +129,7 @@ function getPeriodLabel(period: TimePeriod): string {
   return period;
 }
 
-export default function KLineChart({ stockCode, stockName, currentPrice }: KLineChartProps) {
+export default function KLineChart({ stockCode, stockName, currentPrice, theme }: KLineChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<Chart | null>(null);
   const dataRef = useRef<KLineChartData[]>([]);
@@ -258,25 +259,30 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
       chartRef.current = null;
     }
 
+    const isLightTheme = theme === 'light';
+    const chartGridColor = isLightTheme ? '#d1d1d6' : '#38383a';
+    const chartTextColor = isLightTheme ? '#636366' : '#8e8e93';
+    const chartCrosshairTextColor = isLightTheme ? '#3a3a3c' : '#aeaeb2';
+
     const chart = init(containerRef.current, {
       locale: 'zh-CN',
       hotkey: { enabled: true },
       styles: {
         grid: {
-          horizontal: { style: 'dashed', size: 1, color: '#38383a', dashedValue: [4, 4] },
-          vertical: { style: 'dashed', size: 1, color: '#38383a', dashedValue: [4, 4] },
+          horizontal: { style: 'dashed', size: 1, color: chartGridColor, dashedValue: [4, 4] },
+          vertical: { style: 'dashed', size: 1, color: chartGridColor, dashedValue: [4, 4] },
         },
         candle: {
           type: 'candle_solid',
           bar: {
             upColor: '#30d158',
             downColor: '#ff453a',
-            noChangeColor: '#8e8e93',
+            noChangeColor: chartTextColor,
           },
           priceMark: {
             show: true,
-            high: { show: true, color: '#8e8e93', textOffset: 4, textSize: 11 },
-            low: { show: true, color: '#8e8e93', textOffset: 4, textSize: 11 },
+            high: { show: true, color: chartTextColor, textOffset: 4, textSize: 11 },
+            low: { show: true, color: chartTextColor, textOffset: 4, textSize: 11 },
           },
           tooltip: {
             showRule: 'always',
@@ -284,30 +290,30 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
           },
         },
         xAxis: {
-          axisLine: { show: true, color: '#38383a', size: 1 },
-          tickText: { color: '#8e8e93', size: 11 },
-          tickLine: { show: true, color: '#38383a', size: 1 },
+          axisLine: { show: true, color: chartGridColor, size: 1 },
+          tickText: { color: chartTextColor, size: 11 },
+          tickLine: { show: true, color: chartGridColor, size: 1 },
         },
         yAxis: {
-          axisLine: { show: true, color: '#38383a', size: 1 },
-          tickText: { color: '#8e8e93', size: 11 },
-          tickLine: { show: true, color: '#38383a', size: 1 },
+          axisLine: { show: true, color: chartGridColor, size: 1 },
+          tickText: { color: chartTextColor, size: 11 },
+          tickLine: { show: true, color: chartGridColor, size: 1 },
         },
         separator: {
-          color: '#38383a',
+          color: chartGridColor,
           size: 1,
         },
         crosshair: {
           show: true,
           horizontal: {
             show: true,
-            line: { color: '#8e8e93', size: 1, style: 'dashed' as const, dashedValue: [4, 4] },
-            text: { show: true, color: '#aeaeb2', size: 11, style: 'fill' as const },
+            line: { color: chartTextColor, size: 1, style: 'dashed' as const, dashedValue: [4, 4] },
+            text: { show: true, color: chartCrosshairTextColor, size: 11, style: 'fill' as const },
           },
           vertical: {
             show: true,
-            line: { color: '#8e8e93', size: 1, style: 'dashed' as const, dashedValue: [4, 4] },
-            text: { show: true, color: '#aeaeb2', size: 11, style: 'fill' as const },
+            line: { color: chartTextColor, size: 1, style: 'dashed' as const, dashedValue: [4, 4] },
+            text: { show: true, color: chartCrosshairTextColor, size: 11, style: 'fill' as const },
           },
         },
       },
@@ -352,7 +358,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
     }
     setDrawingCount(persistedOverlays.length);
     syncHistoryControls();
-  }, [stockCode, activePeriod, dataVersion, drawingStorageKey, buildPersistedOverlay, syncHistoryControls]);
+  }, [stockCode, activePeriod, dataVersion, drawingStorageKey, buildPersistedOverlay, syncHistoryControls, theme]);
 
   const toggleMainIndicator = useCallback((indicator: TechnicalIndicator) => {
     setMainIndicator((current) => (current === indicator ? null : indicator));
@@ -511,17 +517,17 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
     <div
       className={
         isFocusMode
-          ? 'fixed inset-0 z-50 flex h-screen flex-col bg-[#1c1c1e]'
+          ? 'fixed inset-0 z-50 flex h-screen flex-col bg-background'
           : 'flex h-full flex-col'
       }
     >
-      <div className="flex items-center justify-between border-b border-[#38383a]/50 px-4 py-3">
+      <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
         <div className="flex items-center gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-white">{stockName}</h2>
-            <span className="text-sm text-[#98989d]">{stockCode}</span>
+            <h2 className="text-lg font-semibold text-foreground">{stockName}</h2>
+            <span className="text-sm text-muted-foreground">{stockCode}</span>
           </div>
-          <span className="ml-4 font-mono text-2xl font-bold text-white">
+          <span className="ml-4 font-mono text-2xl font-bold text-foreground">
             {currentPrice.toFixed(2)}
           </span>
         </div>
@@ -532,7 +538,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 px-2 text-xs text-[#98989d] hover:text-white"
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
             onClick={exportChartImage}
           >
             <Camera className="mr-1 h-3.5 w-3.5" />
@@ -541,7 +547,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 px-2 text-xs text-[#98989d] hover:text-white"
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
             onClick={() => setIsFocusMode((current) => !current)}
           >
             {isFocusMode ? (
@@ -554,9 +560,9 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
         </div>
       </div>
 
-      <div className="border-b border-[#38383a]/50 px-4 py-2">
+      <div className="border-b border-border/60 px-4 py-2">
         <div className="flex w-full max-w-full items-center gap-1 overflow-x-auto">
-          <span className="mr-1 text-xs text-[#98989d]">周期:</span>
+          <span className="mr-1 text-xs text-muted-foreground">周期:</span>
           {timePeriods.map((period) => (
             <Button
               key={period}
@@ -564,8 +570,8 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
               size="sm"
               className={`h-7 shrink-0 px-2 text-xs ${
                 activePeriod === period
-                  ? 'bg-[#3a3a3c] text-white'
-                  : 'text-[#98989d] hover:text-white'
+                  ? 'bg-muted text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
               onClick={() => setActivePeriod(period)}
             >
@@ -579,13 +585,13 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
         ref={containerRef}
         className={
           isFocusMode
-            ? 'min-h-0 w-full flex-1 bg-[#1c1c1e]'
-            : 'h-[400px] w-full bg-[#1c1c1e] xl:h-auto xl:min-h-[400px] xl:flex-1'
+            ? 'min-h-0 w-full flex-1 bg-background'
+            : 'h-[400px] w-full bg-background xl:h-auto xl:min-h-[400px] xl:flex-1'
         }
       />
 
-      <div className="flex w-full max-w-full items-center gap-1.5 overflow-x-auto border-b border-[#38383a]/50 bg-[#1c1c1e] px-4 py-1.5">
-        <span className="mr-1 shrink-0 text-xs text-[#98989d]">画线:</span>
+      <div className="flex w-full max-w-full items-center gap-1.5 overflow-x-auto border-b border-border/60 bg-background px-4 py-1.5">
+        <span className="mr-1 shrink-0 text-xs text-muted-foreground">画线:</span>
         {overlayTools.map((tool) => {
           const Icon = tool.icon;
           return (
@@ -595,8 +601,8 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
               size="sm"
               className={`h-7 shrink-0 px-2 text-xs ${
                 activeDrawingTool === tool.key
-                  ? 'bg-white/10 text-white'
-                  : 'text-[#98989d] hover:text-white'
+                  ? 'bg-muted text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
               onClick={() => startDrawing(tool.key, 'needsText' in tool && tool.needsText)}
             >
@@ -608,7 +614,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 shrink-0 px-2 text-xs text-[#98989d] hover:text-white"
+          className="h-7 shrink-0 px-2 text-xs text-muted-foreground hover:text-foreground"
           onClick={undoDrawing}
           disabled={!canUndoDrawing && activeDrawingTool === null}
         >
@@ -618,7 +624,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 shrink-0 px-2 text-xs text-[#98989d] hover:text-white"
+          className="h-7 shrink-0 px-2 text-xs text-muted-foreground hover:text-foreground"
           onClick={redoDrawing}
           disabled={!canRedoDrawing}
         >
@@ -628,17 +634,17 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 shrink-0 px-2 text-xs text-[#98989d] hover:text-[#ff453a]"
+          className="h-7 shrink-0 px-2 text-xs text-muted-foreground hover:text-[#ff453a]"
           onClick={clearDrawings}
         >
           <Eraser className="mr-1 h-3.5 w-3.5" />
           清空
         </Button>
-        <div className="mx-1 h-4 w-px shrink-0 bg-[#38383a]" />
+        <div className="mx-1 h-4 w-px shrink-0 bg-border" />
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 text-[#98989d] hover:text-white"
+          className="h-7 w-7 text-muted-foreground hover:text-foreground"
           aria-label="放大图表"
           onClick={() => zoomChart(1.2)}
         >
@@ -647,7 +653,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 text-[#98989d] hover:text-white"
+          className="h-7 w-7 text-muted-foreground hover:text-foreground"
           aria-label="缩小图表"
           onClick={() => zoomChart(0.8)}
         >
@@ -656,20 +662,20 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 px-2 text-xs text-[#98989d] hover:text-white"
+          className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
           onClick={scrollToLatest}
         >
           <RotateCcw className="mr-1 h-3.5 w-3.5" />
           回到最新
         </Button>
-        <span className="ml-auto shrink-0 text-[11px] text-[#636366]">
+        <span className="ml-auto shrink-0 text-[11px] text-muted-foreground/70">
           {drawingCount > 0 ? `已保存 ${drawingCount} 个` : '自动保存'}
         </span>
       </div>
 
-      <div className="flex flex-col items-stretch gap-2 border-b border-[#38383a]/50 bg-[#1c1c1e] px-4 py-2">
+      <div className="flex flex-col items-stretch gap-2 border-b border-border/60 bg-background px-4 py-2">
         <div className="flex w-full min-w-0 max-w-full items-center gap-1 overflow-x-auto">
-          <span className="mr-1 shrink-0 text-xs text-[#98989d]">主图:</span>
+          <span className="mr-1 shrink-0 text-xs text-muted-foreground">主图:</span>
           {mainIndicators.map((indicator) => (
             <Badge
               key={indicator.key}
@@ -677,7 +683,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
               className={`shrink-0 cursor-pointer px-2 py-0.5 text-xs ${
                 mainIndicator === indicator.key
                   ? 'border-blue-500/50 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30'
-                  : 'border-[#3a3a3c] text-[#98989d] hover:text-white'
+                  : 'border-border text-muted-foreground hover:text-foreground'
               }`}
               onClick={() => toggleMainIndicator(indicator.key)}
             >
@@ -687,7 +693,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
         </div>
 
         <div className="flex w-full min-w-0 max-w-full items-center gap-1 overflow-x-auto">
-          <span className="mr-1 shrink-0 text-xs text-[#98989d]">副图:</span>
+          <span className="mr-1 shrink-0 text-xs text-muted-foreground">副图:</span>
           {subIndicatorList.map((indicator) => (
             <Badge
               key={indicator.key}
@@ -695,7 +701,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice }: KLine
               className={`shrink-0 cursor-pointer px-2 py-0.5 text-xs ${
                 subIndicators.includes(indicator.key)
                   ? 'border-violet-500/50 bg-violet-500/20 text-violet-300 hover:bg-violet-500/30'
-                  : 'border-[#3a3a3c] text-[#98989d] hover:text-white'
+                  : 'border-border text-muted-foreground hover:text-foreground'
               }`}
               onClick={() => toggleSubIndicator(indicator.key)}
             >
