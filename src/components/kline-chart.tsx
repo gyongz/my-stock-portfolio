@@ -29,6 +29,7 @@ import {
   RotateCcw,
   Spline,
   Tag,
+  TrendingDown,
   TrendingUp,
   Redo2,
   Undo2,
@@ -46,6 +47,7 @@ import {
 } from '@/lib/custom-indicators';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import PositionDialog from '@/components/position-dialog';
 import {
   clonePersistedSnapshot,
   getDrawingStorageKey,
@@ -70,6 +72,12 @@ import {
   writeChartView,
   type ChartPreferences,
 } from '@/lib/chart-preferences';
+import {
+  POSITION_OVERLAY_NAME,
+  ensurePositionOverlaysRegistered,
+  type PositionDirection,
+  type PositionOverlayData,
+} from '@/lib/position-overlays';
 
 const periodMap: Record<TimePeriod, { type: PeriodType; span: number }> = {
   '1min': { type: 'minute', span: 1 },
@@ -229,6 +237,8 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
   const cloudPreferencesReadyRef = useRef(false);
   const restoringViewRef = useRef(false);
   const [activeDrawingTool, setActiveDrawingTool] = useState<string | null>(null);
+  const [positionDialogOpen, setPositionDialogOpen] = useState(false);
+  const [positionDirection, setPositionDirection] = useState<PositionDirection>('long');
   const [drawingCount, setDrawingCount] = useState(0);
   const [canUndoDrawing, setCanUndoDrawing] = useState(false);
   const [canRedoDrawing, setCanRedoDrawing] = useState(false);
@@ -426,6 +436,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     if (!containerRef.current) return;
 
     ensureCustomIndicatorsRegistered();
+    ensurePositionOverlaysRegistered();
 
     if (chartRef.current) {
       dispose(chartRef.current);
@@ -531,6 +542,39 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
       },
     });
     activeDrawingIdRef.current = typeof overlayId === 'string' ? overlayId : null;
+  }, [commitDrawingState]);
+
+  const openPositionDialog = useCallback((direction: PositionDirection) => {
+    setPositionDirection(direction);
+    setPositionDialogOpen(true);
+  }, []);
+
+  const createPositionDrawing = useCallback((position: PositionOverlayData) => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    const data = chart.getDataList();
+    if (data.length < 2) return;
+    const range = chart.getVisibleRange();
+    const visibleFrom = Math.max(0, Math.floor(range.from));
+    const visibleTo = Math.min(data.length - 1, Math.ceil(range.to) - 1);
+    const visibleCount = Math.max(2, visibleTo - visibleFrom + 1);
+    const leftIndex = Math.min(data.length - 2, visibleFrom + Math.floor(visibleCount * 0.18));
+    const rightIndex = Math.max(leftIndex + 1, Math.min(data.length - 1, visibleFrom + Math.floor(visibleCount * 0.68)));
+    chart.createOverlay({
+      name: POSITION_OVERLAY_NAME,
+      groupId: DRAWING_GROUP_ID,
+      mode: 'normal',
+      points: [
+        { timestamp: data[leftIndex].timestamp, dataIndex: leftIndex, value: position.entryPrice },
+        { timestamp: data[rightIndex].timestamp, dataIndex: rightIndex, value: position.entryPrice },
+      ],
+      extendData: position,
+      onPressedMoveEnd: () => window.setTimeout(commitDrawingState, 0),
+      onRemoved: () => {
+        if (!applyingSnapshotRef.current) window.setTimeout(commitDrawingState, 0);
+      },
+    });
+    window.setTimeout(commitDrawingState, 0);
   }, [commitDrawingState]);
 
   const undoDrawing = useCallback(() => {
@@ -829,6 +873,26 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
             </Button>
           );
         })}
+        <div className="mx-1 h-4 w-px shrink-0 bg-border" />
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 shrink-0 px-2 text-xs text-[#16a34a] hover:bg-[#16a34a]/10 hover:text-[#16a34a]"
+          onClick={() => openPositionDialog('long')}
+        >
+          <TrendingUp className="mr-1 h-3.5 w-3.5" />
+          多头仓位
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 shrink-0 px-2 text-xs text-[#dc2626] hover:bg-[#dc2626]/10 hover:text-[#dc2626]"
+          onClick={() => openPositionDialog('short')}
+        >
+          <TrendingDown className="mr-1 h-3.5 w-3.5" />
+          空头仓位
+        </Button>
+        <div className="mx-1 h-4 w-px shrink-0 bg-border" />
         <Button
           variant="ghost"
           size="sm"
@@ -932,6 +996,14 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
           </div>
         </div>
       </div>
+
+      <PositionDialog
+        open={positionDialogOpen}
+        direction={positionDirection}
+        currentPrice={currentPrice}
+        onOpenChange={setPositionDialogOpen}
+        onSubmit={createPositionDrawing}
+      />
 
     </div>
   );
