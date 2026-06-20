@@ -56,6 +56,13 @@ import {
 } from '@/lib/drawing-storage';
 import { useAuth } from '@/components/auth-provider';
 import { saveCloudDrawing, syncCloudDrawing } from '@/lib/cloud-storage';
+import {
+  readChartPreferences,
+  readChartView,
+  writeChartPreferences,
+  writeChartView,
+  type ChartPreferences,
+} from '@/lib/chart-preferences';
 
 const periodMap: Record<TimePeriod, { type: PeriodType; span: number }> = {
   '1min': { type: 'minute', span: 1 },
@@ -200,9 +207,18 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
   const committedSnapshotRef = useRef<PersistedOverlay[]>([]);
   const undoStackRef = useRef<PersistedOverlay[][]>([]);
   const redoStackRef = useRef<PersistedOverlay[][]>([]);
-  const [activePeriod, setActivePeriod] = useState<TimePeriod>('day');
-  const [mainIndicator, setMainIndicator] = useState<TechnicalIndicator | null>('MA');
-  const [subIndicators, setSubIndicators] = useState<TechnicalIndicator[]>(['MACD']);
+  const initialPreferencesRef = useRef<ChartPreferences | null>(null);
+  if (!initialPreferencesRef.current) initialPreferencesRef.current = readChartPreferences();
+  const [activePeriod, setActivePeriod] = useState<TimePeriod>(() => initialPreferencesRef.current!.activePeriod);
+  const [mainIndicator, setMainIndicator] = useState<TechnicalIndicator | null>(() => initialPreferencesRef.current!.mainIndicator);
+  const [subIndicators, setSubIndicators] = useState<TechnicalIndicator[]>(() => initialPreferencesRef.current!.subIndicators);
+  const activePeriodRef = useRef(activePeriod);
+  const mainIndicatorRef = useRef(mainIndicator);
+  const subIndicatorRef = useRef(subIndicators);
+  const themeRef = useRef(theme);
+  const paneHeightsRef = useRef<Record<string, number>>(initialPreferencesRef.current.paneHeights);
+  const viewSaveTimerRef = useRef<number | null>(null);
+  const restoringViewRef = useRef(false);
   const [activeDrawingTool, setActiveDrawingTool] = useState<string | null>(null);
   const [drawingCount, setDrawingCount] = useState(0);
   const [canUndoDrawing, setCanUndoDrawing] = useState(false);
@@ -215,6 +231,49 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
   const { dataSourceId } = useDataSourceContext();
   const { user } = useAuth();
   const drawingStorageKey = getDrawingStorageKey(stockCode, activePeriod);
+
+  const persistIndicatorPreferences = useCallback((paneHeights = paneHeightsRef.current) => {
+    paneHeightsRef.current = paneHeights;
+    writeChartPreferences({
+      activePeriod: activePeriodRef.current,
+      mainIndicator: mainIndicatorRef.current,
+      subIndicators: subIndicatorRef.current,
+      paneHeights,
+    });
+  }, []);
+
+  const restorePaneHeight = useCallback((chart: Chart, paneId: string | null, indicator: TechnicalIndicator) => {
+    const height = paneHeightsRef.current[indicator];
+    if (paneId && height) chart.setPaneOptions({ id: paneId, height });
+  }, []);
+
+  const saveCurrentChartView = useCallback(() => {
+    if (restoringViewRef.current) return;
+    const chart = chartRef.current;
+    if (!chart) return;
+    const data = chart.getDataList();
+    if (data.length === 0) return;
+    const range = chart.getVisibleRange();
+    const rightIndex = Math.min(data.length - 1, Math.max(0, Math.ceil(range.to) - 1));
+    const rightTimestamp = data[rightIndex]?.timestamp;
+    const barSpace = chart.getBarSpace().bar;
+    if (!Number.isFinite(rightTimestamp) || !Number.isFinite(barSpace)) return;
+    writeChartView(stockCode, activePeriod, { barSpace, rightTimestamp });
+  }, [activePeriod, stockCode]);
+
+  const scheduleChartViewSave = useCallback(() => {
+    if (viewSaveTimerRef.current !== null) window.clearTimeout(viewSaveTimerRef.current);
+    viewSaveTimerRef.current = window.setTimeout(saveCurrentChartView, 180);
+  }, [saveCurrentChartView]);
+
+  const restoreCurrentChartView = useCallback((chart: Chart) => {
+    const view = readChartView(stockCode, activePeriod);
+    if (!view || chartRef.current !== chart) return;
+    restoringViewRef.current = true;
+    chart.setBarSpace(view.barSpace);
+    chart.scrollToTimestamp(view.rightTimestamp, 0);
+    window.setTimeout(() => { restoringViewRef.current = false; }, 0);
+  }, [activePeriod, stockCode]);
 
   // 缓存 K 线数据 —— 优先从数据源获取，失败回退到模拟数据
   useEffect(() => {
@@ -257,16 +316,12 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     return () => { cancelled = true; };
   }, [stockCode, activePeriod, dataSourceId]);
 
-  // 用 ref 跟踪最新指标值，initChart 通过 ref 读取而非直接依赖
-  const mainIndicatorRef = useRef(mainIndicator);
-  const subIndicatorRef = useRef(subIndicators);
-  const themeRef = useRef(theme);
   useEffect(() => {
+    activePeriodRef.current = activePeriod;
     mainIndicatorRef.current = mainIndicator;
-  }, [mainIndicator]);
-  useEffect(() => {
     subIndicatorRef.current = subIndicators;
-  }, [subIndicators]);
+    persistIndicatorPreferences();
+  }, [activePeriod, mainIndicator, persistIndicatorPreferences, subIndicators]);
   useEffect(() => {
     themeRef.current = theme;
   }, [theme]);
@@ -378,8 +433,23 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     }
     // 初始化所有已启用的副图指标
     (subIndicatorRef.current ?? []).forEach((indicator) => {
-      chart.createIndicator(indicator);
+      restorePaneHeight(chart, chart.createIndicator(indicator), indicator);
     });
+
+    window.setTimeout(() => restoreCurrentChartView(chart), 0);
+
+    const handleVisibleRangeChange = () => scheduleChartViewSave();
+    const handlePaneDrag = () => {
+      const nextPaneHeights = { ...paneHeightsRef.current };
+      chart.getIndicators().forEach((indicator) => {
+        if (indicator.paneId === 'candle_pane') return;
+        const options = chart.getPaneOptions(indicator.paneId);
+        if (options && !Array.isArray(options) && options.height) nextPaneHeights[indicator.name] = options.height;
+      });
+      persistIndicatorPreferences(nextPaneHeights);
+    };
+    chart.subscribeAction('onVisibleRangeChange', handleVisibleRangeChange);
+    chart.subscribeAction('onPaneDrag', handlePaneDrag);
 
     const persistedOverlays = clonePersistedSnapshot(readPersistedOverlays(drawingStorageKey));
     const chartOverlays = clonePersistedSnapshot(persistedOverlays);
@@ -392,7 +462,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     }
     setDrawingCount(persistedOverlays.length);
     syncHistoryControls();
-  }, [stockCode, activePeriod, drawingStorageKey, buildPersistedOverlay, syncHistoryControls]);
+  }, [stockCode, activePeriod, drawingStorageKey, buildPersistedOverlay, persistIndicatorPreferences, restoreCurrentChartView, restorePaneHeight, scheduleChartViewSave, syncHistoryControls]);
 
   const toggleMainIndicator = useCallback((indicator: TechnicalIndicator) => {
     setMainIndicator((current) => (current === indicator ? null : indicator));
@@ -494,12 +564,16 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     const timer = setTimeout(initChart, 100);
     return () => {
       clearTimeout(timer);
+      if (viewSaveTimerRef.current !== null) {
+        window.clearTimeout(viewSaveTimerRef.current);
+        saveCurrentChartView();
+      }
       if (chartRef.current) {
         dispose(chartRef.current);
         chartRef.current = null;
       }
     };
-  }, [mounted, initChart]);
+  }, [mounted, initChart, saveCurrentChartView]);
 
   // 登录后以云端记录为准；如果云端尚无记录，则把现有本地画线作为首次迁移内容。
   useEffect(() => {
@@ -528,8 +602,11 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
   // 数据更新通过官方 resetData 重新触发 dataLoader，不重建图表实例。
   useEffect(() => {
     if (!mounted || dataVersion === 0) return;
-    chartRef.current?.resetData();
-  }, [dataVersion, mounted]);
+    const chart = chartRef.current;
+    if (!chart) return;
+    chart.resetData();
+    window.setTimeout(() => restoreCurrentChartView(chart), 0);
+  }, [dataVersion, mounted, restoreCurrentChartView]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -576,9 +653,9 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
 
     // 2. 重新添加所有已启用的副图指标
     subIndicators.forEach((indicator) => {
-      chart.createIndicator(indicator);
+      restorePaneHeight(chart, chart.createIndicator(indicator), indicator);
     });
-  }, [subIndicators, mounted]);
+  }, [subIndicators, mounted, restorePaneHeight]);
 
   return (
     <div
