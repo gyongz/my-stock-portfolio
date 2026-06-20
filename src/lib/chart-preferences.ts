@@ -21,6 +21,11 @@ export interface ChartViewState {
   rightTimestamp: number;
 }
 
+export interface ChartPreferencesSnapshot {
+  preferences: ChartPreferences;
+  views: Record<string, ChartViewState>;
+}
+
 export const DEFAULT_CHART_PREFERENCES: ChartPreferences = {
   activePeriod: 'day',
   mainIndicator: 'MA',
@@ -73,4 +78,39 @@ export function readChartView(stockCode: string, period: TimePeriod): ChartViewS
 export function writeChartView(stockCode: string, period: TimePeriod, view: ChartViewState): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(getViewKey(stockCode, period), JSON.stringify(view));
+}
+
+export function readChartPreferencesSnapshot(): ChartPreferencesSnapshot {
+  const views: Record<string, ChartViewState> = {};
+  if (typeof window !== 'undefined') {
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key?.startsWith(`${VIEW_PREFIX}:`)) continue;
+      try {
+        const view = JSON.parse(localStorage.getItem(key) || 'null') as ChartViewState | null;
+        if (view && Number.isFinite(view.barSpace) && Number.isFinite(view.rightTimestamp)) {
+          views[key.slice(VIEW_PREFIX.length + 1)] = view;
+        }
+      } catch {
+        // 忽略损坏的单个视窗缓存
+      }
+    }
+  }
+  return { preferences: readChartPreferences(), views };
+}
+
+export function writeChartPreferencesSnapshot(snapshot: ChartPreferencesSnapshot): void {
+  if (typeof window === 'undefined') return;
+  writeChartPreferences(snapshot.preferences);
+  const existingKeys: string[] = [];
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (key?.startsWith(`${VIEW_PREFIX}:`)) existingKeys.push(key);
+  }
+  existingKeys.forEach((key) => localStorage.removeItem(key));
+  Object.entries(snapshot.views).forEach(([key, view]) => {
+    if (view && typeof view === 'object' && Number.isFinite(view.barSpace) && Number.isFinite(view.rightTimestamp)) {
+      localStorage.setItem(`${VIEW_PREFIX}:${key}`, JSON.stringify(view));
+    }
+  });
 }

@@ -1,5 +1,6 @@
 import type { Holding, WatchlistItem } from '@/lib/types';
 import type { PersistedOverlay } from '@/lib/drawing-storage';
+import type { ChartPreferencesSnapshot } from '@/lib/chart-preferences';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 
 function requireClient() {
@@ -102,5 +103,28 @@ export async function saveCloudDrawing(userId: string, stockCode: string, period
     overlays,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'user_id,stock_code,period' });
+  if (error) throw error;
+}
+
+export async function fetchCloudChartPreferences(userId: string): Promise<ChartPreferencesSnapshot | null> {
+  const { data, error } = await requireClient()
+    .from('chart_preferences')
+    .select('preferences')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  const value = data?.preferences as Partial<ChartPreferencesSnapshot> | null | undefined;
+  if (!value || typeof value.preferences !== 'object' || !value.preferences || typeof value.views !== 'object' || !value.views) {
+    return null;
+  }
+  return value as ChartPreferencesSnapshot;
+}
+
+export async function saveCloudChartPreferences(userId: string, snapshot: ChartPreferencesSnapshot): Promise<void> {
+  const { error } = await requireClient().from('chart_preferences').upsert({
+    user_id: userId,
+    preferences: snapshot,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'user_id' });
   if (error) throw error;
 }

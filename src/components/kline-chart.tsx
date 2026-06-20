@@ -55,11 +55,18 @@ import {
   type PersistedOverlay,
 } from '@/lib/drawing-storage';
 import { useAuth } from '@/components/auth-provider';
-import { saveCloudDrawing, syncCloudDrawing } from '@/lib/cloud-storage';
+import {
+  fetchCloudChartPreferences,
+  saveCloudChartPreferences,
+  saveCloudDrawing,
+  syncCloudDrawing,
+} from '@/lib/cloud-storage';
 import {
   readChartPreferences,
+  readChartPreferencesSnapshot,
   readChartView,
   writeChartPreferences,
+  writeChartPreferencesSnapshot,
   writeChartView,
   type ChartPreferences,
 } from '@/lib/chart-preferences';
@@ -218,6 +225,8 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
   const themeRef = useRef(theme);
   const paneHeightsRef = useRef<Record<string, number>>(initialPreferencesRef.current.paneHeights);
   const viewSaveTimerRef = useRef<number | null>(null);
+  const cloudPreferencesSaveTimerRef = useRef<number | null>(null);
+  const cloudPreferencesReadyRef = useRef(false);
   const restoringViewRef = useRef(false);
   const [activeDrawingTool, setActiveDrawingTool] = useState<string | null>(null);
   const [drawingCount, setDrawingCount] = useState(0);
@@ -230,7 +239,23 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
   const [dataFallback, setDataFallback] = useState(false);
   const { dataSourceId } = useDataSourceContext();
   const { user } = useAuth();
+  const userId = user?.id;
   const drawingStorageKey = getDrawingStorageKey(stockCode, activePeriod);
+
+  const saveCloudPreferencesNow = useCallback(() => {
+    if (!userId || !cloudPreferencesReadyRef.current) return;
+    void saveCloudChartPreferences(userId, readChartPreferencesSnapshot()).catch((error) => {
+      console.error('保存云端图表偏好失败，已保留本地缓存', error);
+    });
+  }, [userId]);
+
+  const scheduleCloudPreferencesSave = useCallback(() => {
+    if (!userId || !cloudPreferencesReadyRef.current) return;
+    if (cloudPreferencesSaveTimerRef.current !== null) {
+      window.clearTimeout(cloudPreferencesSaveTimerRef.current);
+    }
+    cloudPreferencesSaveTimerRef.current = window.setTimeout(saveCloudPreferencesNow, 600);
+  }, [saveCloudPreferencesNow, userId]);
 
   const persistIndicatorPreferences = useCallback((paneHeights = paneHeightsRef.current) => {
     paneHeightsRef.current = paneHeights;
@@ -240,7 +265,8 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
       subIndicators: subIndicatorRef.current,
       paneHeights,
     });
-  }, []);
+    scheduleCloudPreferencesSave();
+  }, [scheduleCloudPreferencesSave]);
 
   const restorePaneHeight = useCallback((chart: Chart, paneId: string | null, indicator: TechnicalIndicator) => {
     const height = paneHeightsRef.current[indicator];
@@ -259,7 +285,8 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     const barSpace = chart.getBarSpace().bar;
     if (!Number.isFinite(rightTimestamp) || !Number.isFinite(barSpace)) return;
     writeChartView(stockCode, activePeriod, { barSpace, rightTimestamp });
-  }, [activePeriod, stockCode]);
+    scheduleCloudPreferencesSave();
+  }, [activePeriod, scheduleCloudPreferencesSave, stockCode]);
 
   const scheduleChartViewSave = useCallback(() => {
     if (viewSaveTimerRef.current !== null) window.clearTimeout(viewSaveTimerRef.current);
@@ -274,6 +301,10 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     chart.scrollToTimestamp(view.rightTimestamp, 0);
     window.setTimeout(() => { restoringViewRef.current = false; }, 0);
   }, [activePeriod, stockCode]);
+  const restoreCurrentChartViewRef = useRef(restoreCurrentChartView);
+  useEffect(() => {
+    restoreCurrentChartViewRef.current = restoreCurrentChartView;
+  }, [restoreCurrentChartView]);
 
   // 缓存 K 线数据 —— 优先从数据源获取，失败回退到模拟数据
   useEffect(() => {
@@ -574,6 +605,47 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
       }
     };
   }, [mounted, initChart, saveCurrentChartView]);
+
+  // 云端偏好存在时优先恢复；首次启用时把当前浏览器里的偏好完整迁移到云端。
+  useEffect(() => {
+    if (!mounted || !userId) return;
+    let cancelled = false;
+    cloudPreferencesReadyRef.current = false;
+    if (cloudPreferencesSaveTimerRef.current !== null) {
+      window.clearTimeout(cloudPreferencesSaveTimerRef.current);
+    }
+    const localSnapshot = readChartPreferencesSnapshot();
+    void fetchCloudChartPreferences(userId).then(async (remoteSnapshot) => {
+      if (cancelled) return;
+      if (remoteSnapshot) {
+        writeChartPreferencesSnapshot(remoteSnapshot);
+        const restored = readChartPreferences();
+        activePeriodRef.current = restored.activePeriod;
+        mainIndicatorRef.current = restored.mainIndicator;
+        subIndicatorRef.current = restored.subIndicators;
+        paneHeightsRef.current = restored.paneHeights;
+        setActivePeriod(restored.activePeriod);
+        setMainIndicator(restored.mainIndicator);
+        setSubIndicators(restored.subIndicators);
+        window.setTimeout(() => {
+          if (chartRef.current) restoreCurrentChartViewRef.current(chartRef.current);
+        }, 100);
+      } else {
+        await saveCloudChartPreferences(userId, localSnapshot);
+      }
+      if (!cancelled) cloudPreferencesReadyRef.current = true;
+    }).catch((error) => {
+      console.error('加载云端图表偏好失败，暂用本地缓存', error);
+      if (!cancelled) cloudPreferencesReadyRef.current = true;
+    });
+    return () => {
+      cancelled = true;
+      cloudPreferencesReadyRef.current = false;
+      if (cloudPreferencesSaveTimerRef.current !== null) {
+        window.clearTimeout(cloudPreferencesSaveTimerRef.current);
+      }
+    };
+  }, [mounted, userId]);
 
   // 登录后以云端记录为准；如果云端尚无记录，则把现有本地画线作为首次迁移内容。
   useEffect(() => {
