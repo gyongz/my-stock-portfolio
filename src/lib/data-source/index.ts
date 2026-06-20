@@ -7,14 +7,19 @@ import type { KLineItem, QuoteData, DataSourceId, DataSourceInfo } from './types
 export const DATA_SOURCES: DataSourceInfo[] = [
   { id: 'sina', name: '新浪财经', description: 'A股实时行情 + 日K线', supportedMarkets: ['A股'] },
   { id: 'tencent', name: '腾讯财经', description: 'A股实时行情 + 多周期K线', supportedMarkets: ['A股', '港股'] },
+  { id: 'akshare', name: 'AKShare', description: 'A股/ETF实时行情 + 全周期K线', supportedMarkets: ['A股', 'ETF'] },
+  { id: 'baostock', name: 'BaoStock', description: 'A股/ETF历史行情 + 最新收盘', supportedMarkets: ['A股', 'ETF'] },
   { id: 'yahoo', name: 'Yahoo Finance', description: '全球股票K线历史数据', supportedMarkets: ['A股', '港股', '美股'] },
 ];
+
+const DATA_SOURCE_IDS = new Set<DataSourceId>(['mock', 'sina', 'tencent', 'yahoo', 'akshare', 'baostock']);
 
 const STORAGE_KEY = 'portfolio-data-source';
 
 function getStoredSource(): DataSourceId {
   if (typeof window === 'undefined') return 'sina';
-  return (localStorage.getItem(STORAGE_KEY) as DataSourceId) || 'sina';
+  const stored = localStorage.getItem(STORAGE_KEY) as DataSourceId | null;
+  return stored && DATA_SOURCE_IDS.has(stored) ? stored : 'sina';
 }
 
 function storeSource(id: DataSourceId) {

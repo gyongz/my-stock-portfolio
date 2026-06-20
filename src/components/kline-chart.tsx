@@ -38,6 +38,7 @@ import {
   ZoomOut,
 } from 'lucide-react';
 import type { TechnicalIndicator, TimePeriod } from '@/lib/types';
+import type { DataSourceId } from '@/lib/data-source/types';
 import { generateMockKLineDataForStock } from '@/lib/kline-data';
 import { useDataSourceContext } from '@/lib/data-source/context';
 import {
@@ -101,6 +102,15 @@ const timePeriods: TimePeriod[] = [
   '1min',
 ];
 
+const supportedPeriodsBySource: Record<DataSourceId, Set<TimePeriod>> = {
+  mock: new Set(timePeriods),
+  akshare: new Set(timePeriods),
+  baostock: new Set(timePeriods.filter((period) => period !== '1min')),
+  sina: new Set(['day', 'week', 'month', '60min', '30min']),
+  tencent: new Set(['day', 'week', 'month', '60min', '30min']),
+  yahoo: new Set(['day', 'week', 'month', '60min', '30min']),
+};
+
 const mainIndicators: { key: TechnicalIndicator; label: string }[] = [
   { key: EMA_RSI_SIGNAL_INDICATOR, label: 'EMA信号' },
   { key: 'MA', label: '均线' },
@@ -146,6 +156,25 @@ const overlayTools = [
 ] as const;
 
 const DRAWING_GROUP_ID = 'portfolio-analysis-drawings';
+
+function normalizePositionOverlay(overlay: PersistedOverlay): PersistedOverlay {
+  if (overlay.name !== POSITION_OVERLAY_NAME || overlay.points.length !== 2) return overlay;
+  const position = overlay.extendData as Partial<PositionOverlayData> | undefined;
+  const rightPoint = overlay.points[1];
+  if (!position || !rightPoint || !Number.isFinite(position.takeProfitPrice) || !Number.isFinite(position.stopLossPrice)) return overlay;
+  return {
+    ...overlay,
+    points: [
+      ...overlay.points,
+      { ...rightPoint, value: position.takeProfitPrice },
+      { ...rightPoint, value: position.stopLossPrice },
+    ],
+  };
+}
+
+function normalizePositionSnapshots(snapshot: PersistedOverlay[]): PersistedOverlay[] {
+  return snapshot.map(normalizePositionOverlay);
+}
 
 interface KLineChartProps {
   stockCode: string;
@@ -251,6 +280,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
   const { user } = useAuth();
   const userId = user?.id;
   const drawingStorageKey = getDrawingStorageKey(stockCode, activePeriod);
+  const supportedPeriods = supportedPeriodsBySource[dataSourceId];
 
   const saveCloudPreferencesNow = useCallback(() => {
     if (!userId || !cloudPreferencesReadyRef.current) return;
@@ -358,6 +388,10 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
   }, [stockCode, activePeriod, dataSourceId]);
 
   useEffect(() => {
+    if (!supportedPeriods.has(activePeriod)) setActivePeriod('day');
+  }, [activePeriod, supportedPeriods]);
+
+  useEffect(() => {
     activePeriodRef.current = activePeriod;
     mainIndicatorRef.current = mainIndicator;
     subIndicatorRef.current = subIndicators;
@@ -402,20 +436,22 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     syncHistoryControls();
   }, [getCurrentDrawingSnapshot, persistDrawingSnapshot, syncHistoryControls]);
 
-  const buildPersistedOverlay = useCallback((overlay: PersistedOverlay): OverlayCreate => ({
-    ...overlay,
-    groupId: DRAWING_GROUP_ID,
-    onPressedMoveEnd: () => window.setTimeout(commitDrawingState, 0),
-    onRemoved: () => {
-      if (!applyingSnapshotRef.current) window.setTimeout(commitDrawingState, 0);
-    },
-  }), [commitDrawingState]);
+  const buildPersistedOverlay = useCallback((overlay: PersistedOverlay): OverlayCreate => {
+    return {
+      ...overlay,
+      groupId: DRAWING_GROUP_ID,
+      onPressedMoveEnd: () => window.setTimeout(commitDrawingState, 0),
+      onRemoved: () => {
+        if (!applyingSnapshotRef.current) window.setTimeout(commitDrawingState, 0);
+      },
+    };
+  }, [commitDrawingState]);
 
   const applyDrawingSnapshot = useCallback((snapshot: PersistedOverlay[]) => {
     const chart = chartRef.current;
     if (!chart) return;
-    const committedSnapshot = clonePersistedSnapshot(snapshot);
-    const chartSnapshot = clonePersistedSnapshot(snapshot);
+    const committedSnapshot = clonePersistedSnapshot(normalizePositionSnapshots(snapshot));
+    const chartSnapshot = clonePersistedSnapshot(committedSnapshot);
     applyingSnapshotRef.current = true;
     try {
       chart.removeOverlay({ groupId: DRAWING_GROUP_ID });
@@ -493,7 +529,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     chart.subscribeAction('onVisibleRangeChange', handleVisibleRangeChange);
     chart.subscribeAction('onPaneDrag', handlePaneDrag);
 
-    const persistedOverlays = clonePersistedSnapshot(readPersistedOverlays(drawingStorageKey));
+    const persistedOverlays = clonePersistedSnapshot(normalizePositionSnapshots(readPersistedOverlays(drawingStorageKey)));
     const chartOverlays = clonePersistedSnapshot(persistedOverlays);
     activeDrawingIdRef.current = null;
     committedSnapshotRef.current = persistedOverlays;
@@ -567,6 +603,8 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
       points: [
         { timestamp: data[leftIndex].timestamp, dataIndex: leftIndex, value: position.entryPrice },
         { timestamp: data[rightIndex].timestamp, dataIndex: rightIndex, value: position.entryPrice },
+        { timestamp: data[rightIndex].timestamp, dataIndex: rightIndex, value: position.takeProfitPrice },
+        { timestamp: data[rightIndex].timestamp, dataIndex: rightIndex, value: position.stopLossPrice },
       ],
       extendData: position,
       onPressedMoveEnd: () => window.setTimeout(commitDrawingState, 0),
@@ -793,8 +831,14 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
           </span>
         </div>
         <div className="flex w-full min-w-0 items-center justify-end gap-1 overflow-x-auto pb-0.5 sm:w-auto sm:gap-1.5 sm:overflow-visible sm:pb-0">
-          <span className={`shrink-0 text-[11px] sm:text-xs ${dataFallback ? 'text-[#ff9f0a]' : 'text-[#30d158]'}`}>
-            {dataLoading ? '数据加载中' : dataFallback ? '数据源异常 · 模拟降级' : '真实行情数据'}
+          <span className={`shrink-0 text-[11px] sm:text-xs ${dataFallback || dataSourceId === 'baostock' ? 'text-[#ff9f0a]' : 'text-[#30d158]'}`}>
+            {dataLoading
+              ? '数据加载中'
+              : dataFallback
+                ? '数据源异常 · 模拟降级'
+                : dataSourceId === 'baostock'
+                  ? '历史行情 · 最新收盘'
+                  : '真实行情数据'}
           </span>
           <Button
             variant="ghost"
@@ -835,6 +879,8 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
                   : 'text-muted-foreground hover:text-foreground'
               }`}
               onClick={() => setActivePeriod(period)}
+              disabled={!supportedPeriods.has(period)}
+              title={supportedPeriods.has(period) ? undefined : `${dataSourceId} 暂不支持${getPeriodLabel(period)}`}
             >
               {getPeriodLabel(period)}
             </Button>

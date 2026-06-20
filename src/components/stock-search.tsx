@@ -19,6 +19,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { StockInfo } from '@/lib/data-source/types';
 import { STOCK_LIST } from '@/lib/kline-data';
+import { useDataSourceContext } from '@/lib/data-source/context';
 
 interface StockSearchProps {
   value: string; // 当前选中的股票代码
@@ -27,6 +28,7 @@ interface StockSearchProps {
 }
 
 export default function StockSearch({ value, onSelect, disabled }: StockSearchProps) {
+  const { dataSourceId } = useDataSourceContext();
   const [open, setOpen] = useState(false);
   const [stocks, setStocks] = useState<StockInfo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,7 +42,8 @@ export default function StockSearch({ value, onSelect, disabled }: StockSearchPr
     if (loadedRef.current) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/data-source?type=stock-list&source=sina');
+      const listSource = dataSourceId === 'akshare' || dataSourceId === 'baostock' ? dataSourceId : 'sina';
+      const res = await fetch(`/api/data-source?type=stock-list&source=${listSource}`);
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setStocks(json.data as StockInfo[]);
@@ -61,7 +64,12 @@ export default function StockSearch({ value, onSelect, disabled }: StockSearchPr
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dataSourceId]);
+
+  useEffect(() => {
+    loadedRef.current = false;
+    setStocks([]);
+  }, [dataSourceId]);
 
   // 打开时加载股票列表
   useEffect(() => {

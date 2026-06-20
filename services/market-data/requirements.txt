@@ -1,0 +1,4 @@
+akshare==1.18.64
+baostock==0.8.9
+fastapi==0.115.12
+uvicorn==0.34.3

@@ -28,9 +28,9 @@ export interface StockInfo {
   yesterdayClose?: number;
 }
 
-export type PeriodType = 'day' | 'week' | 'month' | '60min' | '30min';
+export type PeriodType = 'day' | 'week' | 'month' | '60min' | '30min' | '15min' | '5min' | '1min';
 
-export type DataSourceId = 'mock' | 'sina' | 'tencent' | 'yahoo';
+export type DataSourceId = 'mock' | 'sina' | 'tencent' | 'yahoo' | 'akshare' | 'baostock';
 
 export interface DataSourceInfo {
   id: DataSourceId;

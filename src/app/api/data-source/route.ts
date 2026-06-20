@@ -3,6 +3,7 @@ import { parseSinaRealTime, parseTencentRealTime, parseYahooKLine, parseSinaStoc
 import { getSinaQuoteUrl, getSinaScale, getSinaStockListUrl, SINA_STOCK_LIST_TOTAL_PAGES } from '@/lib/data-source/adapters/sina';
 import { getTencentQuoteUrl, getTencentKLineUrl, getTencentStockListUrl } from '@/lib/data-source/adapters/tencent';
 import { getYahooKLineUrl, getYahooQuoteUrl } from '@/lib/data-source/adapters/yahoo';
+import { fetchPythonKLine, fetchPythonQuotes, fetchPythonStockList, type PythonDataProvider } from '@/lib/data-source/adapters/python';
 import { generateMockKLineDataForStock } from '@/lib/kline-data';
 import { ALL_ETFS } from '@/lib/etf-list';
 import { isMarketDataPersistenceEnabled } from '@/lib/db/client';
@@ -72,6 +73,7 @@ async function handleDataSourceRequest({ type, source, code, codes, period, endT
       return NextResponse.json({
         success: true,
         data,
+        delayed: source === 'baostock',
         storage: { enabled: isMarketDataPersistenceEnabled(), persisted },
       });
     }
@@ -83,6 +85,7 @@ async function handleDataSourceRequest({ type, source, code, codes, period, endT
       return NextResponse.json({
         success: true,
         data: quotes,
+        delayed: source === 'baostock',
         storage: { enabled: isMarketDataPersistenceEnabled(), persisted },
       });
     }
@@ -125,6 +128,9 @@ function parseLimit(value: string | null): number {
 
 async function fetchKLine(source: string, code: string, period: string): Promise<KLineItem[]> {
   switch (source) {
+    case 'akshare':
+    case 'baostock':
+      return fetchPythonKLine(source as PythonDataProvider, code, period);
     case 'sina': {
       const url = `https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketData.getKLineData?symbol=${getSinaCode(code)}&scale=${getSinaScale(period)}&ma=no&datalen=520`;
       const res = await fetch(url, { next: { revalidate: 60 } });
@@ -188,6 +194,9 @@ async function fetchKLine(source: string, code: string, period: string): Promise
 
 async function fetchQuotes(source: string, codes: string[]): Promise<Record<string, QuoteData>> {
   switch (source) {
+    case 'akshare':
+    case 'baostock':
+      return fetchPythonQuotes(source as PythonDataProvider, codes);
     case 'sina': {
       const url = getSinaQuoteUrl(codes);
       const res = await fetch(url, {
@@ -270,6 +279,9 @@ async function fetchQuotes(source: string, codes: string[]): Promise<Record<stri
 
 async function fetchStockList(source: string): Promise<StockInfo[]> {
   switch (source) {
+    case 'akshare':
+    case 'baostock':
+      return fetchPythonStockList(source as PythonDataProvider);
     case 'sina': {
       // 并行拉取所有分页（新浪每页最多 100 条），总页数约 56 页
       const pageNumbers = Array.from({ length: SINA_STOCK_LIST_TOTAL_PAGES }, (_, i) => i + 1);

@@ -75,7 +75,7 @@ function HomeContent() {
   const [showChart, setShowChart] = useState(true);
   const [sideCollapsed, setSideCollapsed] = useState(false);
   const [isWideLayout, setIsWideLayout] = useState(false);
-  const [marketStatus, setMarketStatus] = useState<'loading' | 'live' | 'fallback'>('loading');
+  const [marketStatus, setMarketStatus] = useState<'loading' | 'live' | 'delayed' | 'fallback'>('loading');
   const [marketError, setMarketError] = useState<string | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
@@ -191,6 +191,7 @@ function HomeContent() {
       const result = await res.json() as {
         success: boolean;
         data?: Record<string, QuoteData>;
+        delayed?: boolean;
         error?: string;
       };
       if (!res.ok || !result.success || !result.data) {
@@ -202,7 +203,7 @@ function HomeContent() {
       if (Object.keys(prices).length === 0) throw new Error('行情源未返回有效价格');
       refreshPrices(prices);
       updateWatchlistQuotes(result.data);
-      setMarketStatus('live');
+      setMarketStatus(result.delayed ? 'delayed' : 'live');
       return;
     } catch (error) {
       setMarketError(error instanceof Error ? error.message : String(error));
@@ -237,11 +238,21 @@ function HomeContent() {
             <div className="flex min-w-0 items-center gap-1.5">
               <span
                 className={`hidden whitespace-nowrap text-[11px] px-2 py-0.5 rounded-md sm:inline-flex ${
-                  marketStatus === 'live' ? 'bg-[#30d158]/10 text-[#30d158]' : 'bg-muted/60 text-muted-foreground'
+                  marketStatus === 'live'
+                    ? 'bg-[#30d158]/10 text-[#30d158]'
+                    : marketStatus === 'delayed'
+                      ? 'bg-[#ff9f0a]/10 text-[#ff9f0a]'
+                      : 'bg-muted/60 text-muted-foreground'
                 }`}
                 title={marketError || undefined}
               >
-                {marketStatus === 'loading' ? '行情更新中' : marketStatus === 'live' ? '实时行情' : '模拟降级'}
+                {marketStatus === 'loading'
+                  ? '行情更新中'
+                  : marketStatus === 'live'
+                    ? '实时行情'
+                    : marketStatus === 'delayed'
+                      ? '最新收盘'
+                      : '模拟降级'}
               </span>
               <DataSourceSelector
                 currentSource={dataSourceId}

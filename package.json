@@ -10,6 +10,8 @@
     "preinstall": "npx only-allow pnpm",
     "lint": "eslint",
     "lint:build": "eslint . --quiet",
+    "market-data:setup": "bash ./scripts/setup-market-data.sh",
+    "market-data:start": "bash ./scripts/start-market-data.sh",
     "start": "bash ./scripts/start.sh",
     "ts-check": "tsc -p tsconfig.json",
     "validate": "pnpm run --parallel '/^(ts-check|lint:build)$/'"
