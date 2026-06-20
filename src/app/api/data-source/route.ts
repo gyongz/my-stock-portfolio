@@ -4,6 +4,7 @@ import { getSinaQuoteUrl, getSinaScale, getSinaStockListUrl, SINA_STOCK_LIST_TOT
 import { getTencentQuoteUrl, getTencentKLineUrl, getTencentStockListUrl } from '@/lib/data-source/adapters/tencent';
 import { getYahooKLineUrl, getYahooQuoteUrl } from '@/lib/data-source/adapters/yahoo';
 import { generateMockKLineDataForStock } from '@/lib/kline-data';
+import { ALL_ETFS } from '@/lib/etf-list';
 import { isMarketDataPersistenceEnabled } from '@/lib/db/client';
 import { loadMarketBars, storeLatestQuotes, storeMarketBars } from '@/lib/data-source/storage';
 import type { KLineItem, QuoteData, StockInfo } from '@/lib/data-source/types';
@@ -300,6 +301,15 @@ async function fetchStockList(source: string): Promise<StockInfo[]> {
 
       allStocks.sort((a, b) => a.code.localeCompare(b.code));
 
+      // 追加 ETF 列表（新浪 hs_a 接口不包含 ETF 品种）
+      for (const etf of ALL_ETFS) {
+        if (!seen.has(etf.code)) {
+          seen.add(etf.code);
+          allStocks.push({ code: etf.code, name: etf.name });
+        }
+      }
+      allStocks.sort((a, b) => a.code.localeCompare(b.code));
+
       if (allStocks.length === 0) throw new Error('新浪股票列表返回为空');
       return allStocks;
     }
@@ -313,11 +323,15 @@ async function fetchStockList(source: string): Promise<StockInfo[]> {
 }
 
 function getSinaCode(code: string): string {
-  return `${code.startsWith('6') ? 'sh' : 'sz'}${code}`;
+  // 沪市: 6开头主板, 5开头ETF(含510~518/560~563/588), 9开头B股
+  // 深市: 0开头主板, 1开头ETF(含159等), 2开头创业板, 3开头科创板
+  if (code.startsWith('6') || code.startsWith('5') || code.startsWith('9')) return `sh${code}`;
+  return `sz${code}`;
 }
 
 function getTencentCode(code: string): string {
-  return `${code.startsWith('6') ? 'sh' : 'sz'}${code}`;
+  if (code.startsWith('6') || code.startsWith('5') || code.startsWith('9')) return `sh${code}`;
+  return `sz${code}`;
 }
 
 function getCleanCode(raw: string): string {
