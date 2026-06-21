@@ -778,6 +778,13 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
   }, [mounted]);
 
   useEffect(() => {
+    if (!mounted || !containerRef.current || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => chartRef.current?.resize());
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [mounted]);
+
+  useEffect(() => {
     if (!mounted) return;
     const frame = requestAnimationFrame(() => chartRef.current?.resize());
     return () => cancelAnimationFrame(frame);

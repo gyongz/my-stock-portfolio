@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef, type KeyboardEvent, type PointerEvent } from 'react';
 import dynamic from 'next/dynamic';
 import { Plus, LayoutDashboard, ChevronDown, ChevronLeft, Cloud, LogOut, Moon, Star, Sun, WalletCards } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,12 @@ const KLineChart = dynamic(() => import('@/components/kline-chart'), {
   ),
 });
 
+const SIDE_PANEL_MIN_WIDTH = 180;
+const SIDE_PANEL_DEFAULT_WIDTH = 560;
+const SIDE_PANEL_MAX_WIDTH = 760;
+const CHART_MIN_WIDTH = 480;
+const SIDE_PANEL_WIDTH_STORAGE_KEY = 'portfolio-side-panel-width';
+
 export default function Home() {
   return (
     <AuthGate>
@@ -74,6 +80,10 @@ function HomeContent() {
   const [activeList, setActiveList] = useState<'holdings' | 'watchlist'>('holdings');
   const [showChart, setShowChart] = useState(true);
   const [sideCollapsed, setSideCollapsed] = useState(false);
+  const [sidePanelWidth, setSidePanelWidth] = useState(SIDE_PANEL_DEFAULT_WIDTH);
+  const [sidePanelMaxWidth, setSidePanelMaxWidth] = useState(SIDE_PANEL_MAX_WIDTH);
+  const [isResizingSidePanel, setIsResizingSidePanel] = useState(false);
+  const sidePanelWidthRef = useRef(SIDE_PANEL_DEFAULT_WIDTH);
   const [isWideLayout, setIsWideLayout] = useState(false);
   const [marketStatus, setMarketStatus] = useState<'loading' | 'live' | 'delayed' | 'fallback'>('loading');
   const [marketError, setMarketError] = useState<string | null>(null);
@@ -89,13 +99,82 @@ function HomeContent() {
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(min-width: 1280px)');
-    const syncWideLayout = () => setIsWideLayout(mediaQuery.matches);
+    const syncWideLayout = () => {
+      const maxWidth = Math.max(
+        SIDE_PANEL_MIN_WIDTH,
+        Math.min(SIDE_PANEL_MAX_WIDTH, window.innerWidth - CHART_MIN_WIDTH),
+      );
+      setIsWideLayout(mediaQuery.matches);
+      setSidePanelMaxWidth(maxWidth);
+      setSidePanelWidth((current) => {
+        const next = Math.min(Math.max(current, SIDE_PANEL_MIN_WIDTH), maxWidth);
+        sidePanelWidthRef.current = next;
+        return next;
+      });
+    };
+    const savedWidth = Number(localStorage.getItem(SIDE_PANEL_WIDTH_STORAGE_KEY));
+    if (Number.isFinite(savedWidth)) {
+      sidePanelWidthRef.current = savedWidth;
+      setSidePanelWidth(savedWidth);
+    }
     syncWideLayout();
     mediaQuery.addEventListener('change', syncWideLayout);
-    return () => mediaQuery.removeEventListener('change', syncWideLayout);
+    window.addEventListener('resize', syncWideLayout);
+    return () => {
+      mediaQuery.removeEventListener('change', syncWideLayout);
+      window.removeEventListener('resize', syncWideLayout);
+    };
   }, []);
 
   const isSidePanelCollapsed = sideCollapsed && isWideLayout;
+  const renderedSidePanelWidth = isSidePanelCollapsed ? SIDE_PANEL_MIN_WIDTH : sidePanelWidth;
+
+  const updateSidePanelWidth = useCallback((clientX: number) => {
+    const nextWidth = Math.min(
+      Math.max(window.innerWidth - clientX, SIDE_PANEL_MIN_WIDTH),
+      sidePanelMaxWidth,
+    );
+    sidePanelWidthRef.current = nextWidth;
+    setSidePanelWidth(nextWidth);
+  }, [sidePanelMaxWidth]);
+
+  const handleSidePanelResizeStart = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    if (!isWideLayout) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setSideCollapsed(false);
+    setIsResizingSidePanel(true);
+    updateSidePanelWidth(event.clientX);
+  }, [isWideLayout, updateSidePanelWidth]);
+
+  const handleSidePanelResizeMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    if (!isResizingSidePanel) return;
+    updateSidePanelWidth(event.clientX);
+  }, [isResizingSidePanel, updateSidePanelWidth]);
+
+  const handleSidePanelResizeEnd = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    if (!isResizingSidePanel) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    setIsResizingSidePanel(false);
+    localStorage.setItem(SIDE_PANEL_WIDTH_STORAGE_KEY, String(Math.round(sidePanelWidthRef.current)));
+  }, [isResizingSidePanel]);
+
+  const handleSidePanelResizeKeyDown = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
+    let nextWidth: number | null = null;
+    if (event.key === 'ArrowLeft') nextWidth = sidePanelWidthRef.current + 20;
+    if (event.key === 'ArrowRight') nextWidth = sidePanelWidthRef.current - 20;
+    if (event.key === 'Home') nextWidth = SIDE_PANEL_MIN_WIDTH;
+    if (event.key === 'End') nextWidth = sidePanelMaxWidth;
+    if (nextWidth === null) return;
+    event.preventDefault();
+    const clampedWidth = Math.min(Math.max(nextWidth, SIDE_PANEL_MIN_WIDTH), sidePanelMaxWidth);
+    sidePanelWidthRef.current = clampedWidth;
+    setSidePanelWidth(clampedWidth);
+    setSideCollapsed(false);
+    localStorage.setItem(SIDE_PANEL_WIDTH_STORAGE_KEY, String(Math.round(clampedWidth)));
+  }, [sidePanelMaxWidth]);
 
   const toggleTheme = useCallback(() => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
@@ -222,7 +301,7 @@ function HomeContent() {
   }, [setDataSource]);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className={`min-h-screen bg-background flex flex-col ${isResizingSidePanel ? 'cursor-col-resize select-none' : ''}`}>
       {/* 顶栏 - Apple 风格 */}
       <header className="bg-background/80 backdrop-blur-xl sticky top-0 z-10 border-b border-border/60">
         <div className="flex h-11 items-center justify-between gap-2 px-3 sm:px-5">
@@ -332,32 +411,49 @@ function HomeContent() {
       <div className="flex-1 flex flex-col xl:flex-row gap-0 relative overflow-hidden">
         {/* KLine 图表区域 */}
         {showChart && (
-          <div className={`bg-background relative min-w-0 ${
-            isSidePanelCollapsed ? 'xl:flex-1' : 'xl:w-[65%]'
-          }`}>
+          <div className="bg-background relative min-w-0 xl:flex-1">
             <KLineChart
               stockCode={displayCode}
               stockName={displayName}
               currentPrice={displayPrice}
               theme={theme}
             />
-            {/* 收起/展开侧栏按钮 */}
-            <button
-              onClick={() => setSideCollapsed((v) => !v)}
-              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 w-5 h-10 rounded-r-lg flex items-center justify-center
-                         bg-card text-muted-foreground hover:text-foreground hover:bg-muted
-                         transition-colors cursor-pointer hidden xl:flex"
-              title={isSidePanelCollapsed ? '展开持仓列表' : '收起持仓列表'}
-            >
-              <ChevronLeft className={`w-3.5 h-3.5 transition-transform ${isSidePanelCollapsed ? '' : 'rotate-180'}`} />
-            </button>
           </div>
         )}
 
         {/* 持仓 / 自选列表区域 */}
-        <div className={`flex flex-col bg-background ${
-          isSidePanelCollapsed ? 'w-full xl:w-[180px] xl:shrink-0' : 'w-full min-w-0 xl:flex-1'
-        }`}>
+        <div
+          className="relative flex w-full min-w-0 flex-col bg-background xl:shrink-0"
+          style={isWideLayout ? { width: renderedSidePanelWidth } : undefined}
+        >
+          <div
+            role="separator"
+            aria-label="调整持仓和自选区域宽度"
+            aria-orientation="vertical"
+            aria-valuemin={SIDE_PANEL_MIN_WIDTH}
+            aria-valuemax={sidePanelMaxWidth}
+            aria-valuenow={renderedSidePanelWidth}
+            tabIndex={0}
+            onPointerDown={handleSidePanelResizeStart}
+            onPointerMove={handleSidePanelResizeMove}
+            onPointerUp={handleSidePanelResizeEnd}
+            onPointerCancel={handleSidePanelResizeEnd}
+            onKeyDown={handleSidePanelResizeKeyDown}
+            className="group absolute inset-y-0 left-0 z-20 hidden w-3 -translate-x-1/2 touch-none cursor-col-resize items-center justify-center outline-none xl:flex"
+            title="拖动调整宽度；方向键可微调"
+          >
+            <span className={`h-full w-px transition-colors ${isResizingSidePanel ? 'bg-[#30d158]' : 'bg-border group-hover:bg-[#30d158]/70 group-focus-visible:bg-[#30d158]'}`} />
+          </div>
+          {/* 收起/展开侧栏按钮 */}
+          <button
+            type="button"
+            onClick={() => setSideCollapsed((value) => !value)}
+            className="absolute left-0 top-1/2 z-30 hidden h-10 w-5 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-r-lg bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground xl:flex"
+            title={isSidePanelCollapsed ? '展开持仓列表' : '收起持仓列表'}
+            aria-label={isSidePanelCollapsed ? '展开持仓列表' : '收起持仓列表'}
+          >
+            <ChevronLeft className={`h-3.5 w-3.5 transition-transform ${isSidePanelCollapsed ? '' : 'rotate-180'}`} />
+          </button>
           <Tabs value={activeList} onValueChange={(value) => setActiveList(value as 'holdings' | 'watchlist')} className="min-h-0 flex-1 gap-0">
             <div className="flex items-center justify-between gap-2 px-4 py-2">
               <TabsList className="h-8 bg-muted/50 p-0.5">
