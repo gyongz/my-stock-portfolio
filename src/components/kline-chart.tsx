@@ -196,7 +196,19 @@ function getChartThemeStyles(theme: 'dark' | 'light'): DeepPartial<Styles> {
   const isLightTheme = theme === 'light';
   const chartGridColor = isLightTheme ? '#d1d1d6' : '#38383a';
   const chartTextColor = isLightTheme ? '#636366' : '#8e8e93';
-  const chartCrosshairTextColor = isLightTheme ? '#3a3a3c' : '#aeaeb2';
+  const chartCrosshairTextColor = isLightTheme ? '#1c1c1e' : '#f2f2f7';
+  const chartCrosshairBackgroundColor = isLightTheme ? '#ffffff' : '#2c2c2e';
+  const chartCrosshairBorderColor = isLightTheme ? '#c7c7cc' : '#48484a';
+  const crosshairTextStyle = {
+    show: true,
+    color: chartCrosshairTextColor,
+    size: 11,
+    style: 'fill' as const,
+    backgroundColor: chartCrosshairBackgroundColor,
+    borderColor: chartCrosshairBorderColor,
+    borderSize: 1,
+    borderRadius: 4,
+  };
 
   return {
     grid: {
@@ -233,12 +245,12 @@ function getChartThemeStyles(theme: 'dark' | 'light'): DeepPartial<Styles> {
       horizontal: {
         show: true,
         line: { color: chartTextColor, size: 1, style: 'dashed', dashedValue: [4, 4] },
-        text: { show: true, color: chartCrosshairTextColor, size: 11, style: 'fill' },
+        text: crosshairTextStyle,
       },
       vertical: {
         show: true,
         line: { color: chartTextColor, size: 1, style: 'dashed', dashedValue: [4, 4] },
-        text: { show: true, color: chartCrosshairTextColor, size: 11, style: 'fill' },
+        text: crosshairTextStyle,
       },
     },
   };
