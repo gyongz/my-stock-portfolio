@@ -1,4 +1,5 @@
 akshare==1.18.64
 baostock==0.8.9
+tushare==1.4.29
 fastapi==0.115.12
 uvicorn==0.34.3

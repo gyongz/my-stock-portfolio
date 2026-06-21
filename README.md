@@ -346,9 +346,9 @@ export const useStore = create<Store>((set) => ({
 
 `market_bars` 以 `(source, symbol, interval, timestamp)` 去重，并按图表查询路径建立降序索引。
 
-### AKShare 与 BaoStock
+### AKShare、BaoStock 与 Tushare
 
-两个 Python 数据源通过独立行情桥接服务接入，浏览器只访问 Next.js API：
+三个 Python 数据源通过独立行情桥接服务接入，浏览器只访问 Next.js API：
 
 ```bash
 pnpm market-data:setup
@@ -359,6 +359,7 @@ pnpm dev
 
 - AKShare：A 股/ETF 实时报价，1/5/15/30/60 分钟及日/周/月 K 线。
 - BaoStock：A 股/ETF 历史行情和最新交易日收盘，不提供真正实时报价，也不支持 1 分钟线。
+- Tushare：配置服务端 `TUSHARE_TOKEN` 后提供 A 股日/周/月 K 线；报价使用最新交易日收盘。分钟适配已保留，但当前 Token 的分钟接口仅限每小时一次，界面暂不开放。
 - 上游失败时，Next.js 优先读取 PostgreSQL 历史缓存，最后才回退模拟数据。
 
 线上部署请参照 `services/market-data/README.md` 使用独立容器，并设置 `MARKET_DATA_SERVICE_URL` 与可选的 `MARKET_DATA_SERVICE_TOKEN`。

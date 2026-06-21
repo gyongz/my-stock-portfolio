@@ -9,10 +9,11 @@ export const DATA_SOURCES: DataSourceInfo[] = [
   { id: 'tencent', name: '腾讯财经', description: 'A股实时行情 + 多周期K线', supportedMarkets: ['A股', '港股'] },
   { id: 'akshare', name: 'AKShare', description: 'A股/ETF实时行情 + 全周期K线', supportedMarkets: ['A股', 'ETF'] },
   { id: 'baostock', name: 'BaoStock', description: 'A股/ETF历史行情 + 最新收盘', supportedMarkets: ['A股', 'ETF'] },
+  { id: 'tushare', name: 'Tushare', description: 'A股日周月K线 + 最新收盘', supportedMarkets: ['A股'] },
   { id: 'yahoo', name: 'Yahoo Finance', description: '全球股票K线历史数据', supportedMarkets: ['A股', '港股', '美股'] },
 ];
 
-const DATA_SOURCE_IDS = new Set<DataSourceId>(['mock', 'sina', 'tencent', 'yahoo', 'akshare', 'baostock']);
+const DATA_SOURCE_IDS = new Set<DataSourceId>(['mock', 'sina', 'tencent', 'yahoo', 'akshare', 'baostock', 'tushare']);
 
 const STORAGE_KEY = 'portfolio-data-source';
 

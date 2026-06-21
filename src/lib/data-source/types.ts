@@ -30,7 +30,7 @@ export interface StockInfo {
 
 export type PeriodType = 'day' | 'week' | 'month' | '60min' | '30min' | '15min' | '5min' | '1min';
 
-export type DataSourceId = 'mock' | 'sina' | 'tencent' | 'yahoo' | 'akshare' | 'baostock';
+export type DataSourceId = 'mock' | 'sina' | 'tencent' | 'yahoo' | 'akshare' | 'baostock' | 'tushare';
 
 export interface DataSourceInfo {
   id: DataSourceId;

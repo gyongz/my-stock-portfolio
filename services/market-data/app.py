@@ -11,10 +11,11 @@ from typing import Any, Literal, Optional
 import akshare as ak
 import baostock as bs
 import pandas as pd
+import tushare as ts
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 
 
-Provider = Literal["akshare", "baostock"]
+Provider = Literal["akshare", "baostock", "tushare"]
 app = FastAPI(title="Portfolio Market Data Bridge", version="1.0.0")
 
 _bao_lock = threading.Lock()
@@ -50,7 +51,7 @@ def safe_float(value: Any, default: float = 0.0) -> float:
 
 def timestamp_ms(value: Any) -> int:
     text = str(value).strip()
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%Y%m%d%H%M%S%f"):
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%Y%m%d", "%Y%m%d%H%M%S%f"):
         try:
             return int(datetime.strptime(text, fmt).timestamp() * 1000)
         except ValueError:
@@ -70,6 +71,22 @@ def baostock_code(code: str) -> str:
 def is_etf_code(code: str) -> bool:
     clean = normalize_code(code)
     return clean.startswith("5") or clean.startswith("159")
+
+
+def tushare_code(code: str) -> str:
+    clean = normalize_code(code)
+    if clean.startswith(("4", "8", "9")):
+        return f"{clean}.BJ"
+    if clean.startswith(("5", "6")):
+        return f"{clean}.SH"
+    return f"{clean}.SZ"
+
+
+def tushare_client():
+    token = os.getenv("TUSHARE_TOKEN", "").strip()
+    if not token:
+        raise RuntimeError("TUSHARE_TOKEN is not configured")
+    return ts.pro_api(token)
 
 
 def dataframe_records(frame) -> list[dict[str, Any]]:
@@ -302,18 +319,142 @@ def baostock_stocks() -> list[dict[str, Any]]:
     return cached("baostock:stocks", 6 * 3600, load)
 
 
+def tushare_daily_frame(code: str):
+    ts_code = tushare_code(code)
+
+    def load():
+        return tushare_client().daily(
+            ts_code=ts_code,
+            start_date=(date.today() - timedelta(days=3650)).strftime("%Y%m%d"),
+            end_date=date.today().strftime("%Y%m%d"),
+        )
+
+    return cached(f"tushare:daily:{ts_code}", 5 * 60, load)
+
+
+def tushare_kline(code: str, period: str, limit: int) -> list[dict[str, Any]]:
+    if period in {"day", "week", "month"}:
+        frame = tushare_daily_frame(code).copy()
+        if period in {"week", "month"} and not frame.empty:
+            rule = "W-FRI" if period == "week" else "ME"
+            frame = (
+                frame.assign(trade_date=pd.to_datetime(frame["trade_date"]))
+                .set_index("trade_date")
+                .resample(rule)
+                .agg({"open": "first", "high": "max", "low": "min", "close": "last", "vol": "sum"})
+                .dropna(subset=["close"])
+                .reset_index()
+            )
+        time_column = "trade_date"
+        volume_multiplier = 100
+    else:
+        if period not in {"1min", "5min", "15min", "30min", "60min"}:
+            raise ValueError(f"Tushare does not support period {period}")
+        lookback_days = 30 if period in {"1min", "5min"} else 180
+        ts_code = tushare_code(code)
+
+        def load_minutes():
+            return tushare_client().stk_mins(
+                ts_code=ts_code,
+                freq=period,
+                start_date=(datetime.now() - timedelta(days=lookback_days)).strftime("%Y-%m-%d %H:%M:%S"),
+                end_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            )
+
+        frame = cached(f"tushare:minutes:{ts_code}:{period}", 55 * 60, load_minutes)
+        time_column = "trade_time"
+        volume_multiplier = 1
+    result = [
+        {
+            "timestamp": timestamp_ms(row[time_column]),
+            "open": safe_float(row.get("open")),
+            "high": safe_float(row.get("high")),
+            "low": safe_float(row.get("low")),
+            "close": safe_float(row.get("close")),
+            "volume": safe_float(row.get("vol")) * volume_multiplier,
+        }
+        for row in dataframe_records(frame)
+    ]
+    return sorted((item for item in result if item["close"] > 0), key=lambda item: item["timestamp"])[-limit:]
+
+
+def tushare_quotes(codes: list[str]) -> dict[str, dict[str, float]]:
+    results: dict[str, dict[str, float]] = {}
+    for raw_code in codes:
+        code = normalize_code(raw_code)
+        frame = tushare_daily_frame(code)
+        rows = sorted(dataframe_records(frame), key=lambda row: str(row.get("trade_date", "")))
+        if not rows:
+            continue
+        latest = rows[-1]
+        price = safe_float(latest.get("close"))
+        previous = safe_float(latest.get("pre_close"), price)
+        change = safe_float(latest.get("change"), price - previous)
+        percent = safe_float(latest.get("pct_chg"), (change / previous * 100) if previous else 0)
+        results[code] = {
+            "price": price,
+            "change": change,
+            "changePercent": percent,
+            "open": safe_float(latest.get("open"), price),
+            "high": safe_float(latest.get("high"), price),
+            "low": safe_float(latest.get("low"), price),
+            "volume": safe_float(latest.get("vol")) * 100,
+            "yesterdayClose": previous,
+        }
+    return results
+
+
+def tushare_stocks() -> list[dict[str, Any]]:
+    def load():
+        frame = tushare_client().stock_basic(
+            exchange="",
+            list_status="L",
+            fields="ts_code,symbol,name,market,list_status",
+        )
+        results = []
+        for row in dataframe_records(frame):
+            code = normalize_code(str(row.get("symbol", "")))
+            name = str(row.get("name", "")).strip()
+            if len(code) == 6 and name:
+                results.append({"code": code, "name": name})
+        return sorted(results, key=lambda item: item["code"])
+
+    return cached("tushare:stocks", 6 * 3600, load)
+
+
+KLINE_PROVIDERS = {
+    "akshare": akshare_kline,
+    "baostock": baostock_kline,
+    "tushare": tushare_kline,
+}
+
+QUOTE_PROVIDERS = {
+    "akshare": akshare_quotes,
+    "baostock": baostock_quotes,
+    "tushare": tushare_quotes,
+}
+
+STOCK_PROVIDERS = {
+    "akshare": akshare_stocks,
+    "baostock": baostock_stocks,
+    "tushare": tushare_stocks,
+}
+
+DELAYED_PROVIDERS = {"baostock", "tushare"}
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
-    return {"ok": True, "providers": ["akshare", "baostock"]}
+    return {"ok": True, "providers": list(KLINE_PROVIDERS)}
 
 
 @app.get("/kline", dependencies=[Depends(require_token)])
 def kline(provider: Provider, code: str, period: str = "day", limit: int = Query(default=520, ge=1, le=1000)):
     try:
-        data = akshare_kline(code, period, limit) if provider == "akshare" else baostock_kline(code, period, limit)
+        data = KLINE_PROVIDERS[provider](code, period, limit)
         if not data:
             raise RuntimeError("No K-line data returned")
-        return {"success": True, "provider": provider, "delayed": provider == "baostock", "data": data}
+        return {"success": True, "provider": provider, "delayed": provider in DELAYED_PROVIDERS, "data": data}
     except Exception as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
 
@@ -322,8 +463,8 @@ def kline(provider: Provider, code: str, period: str = "day", limit: int = Query
 def quotes(provider: Provider, codes: str):
     code_list = [normalize_code(code) for code in codes.split(",") if code.strip()]
     try:
-        data = akshare_quotes(code_list) if provider == "akshare" else baostock_quotes(code_list)
-        return {"success": True, "provider": provider, "delayed": provider == "baostock", "data": data}
+        data = QUOTE_PROVIDERS[provider](code_list)
+        return {"success": True, "provider": provider, "delayed": provider in DELAYED_PROVIDERS, "data": data}
     except Exception as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
 
@@ -331,7 +472,7 @@ def quotes(provider: Provider, codes: str):
 @app.get("/stocks", dependencies=[Depends(require_token)])
 def stocks(provider: Provider):
     try:
-        data = akshare_stocks() if provider == "akshare" else baostock_stocks()
+        data = STOCK_PROVIDERS[provider]()
         return {"success": True, "provider": provider, "data": data}
     except Exception as error:
         raise HTTPException(status_code=502, detail=str(error)) from error

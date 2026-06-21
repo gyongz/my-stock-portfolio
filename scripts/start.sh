@@ -13,6 +13,12 @@ if [[ -f "${COZE_WORKSPACE_PATH}/.env.production" ]]; then
     set +a
 fi
 
+if [[ -f "${COZE_WORKSPACE_PATH}/.env.production.local" ]]; then
+    set -a
+    source "${COZE_WORKSPACE_PATH}/.env.production.local"
+    set +a
+fi
+
 start_market_data_service() {
     if [[ "${MARKET_DATA_SERVICE_AUTOSTART:-1}" != "1" ]]; then
         return
@@ -29,7 +35,7 @@ start_market_data_service() {
         return
     fi
     if [[ ! -x "${python_bin}" ]]; then
-        echo "Python market data service is not installed; run pnpm market-data:setup to enable AKShare/BaoStock."
+        echo "Python market data service is not installed; run pnpm market-data:setup to enable AKShare/BaoStock/Tushare."
         return
     fi
     mkdir -p "${COZE_WORKSPACE_PATH}/logs"

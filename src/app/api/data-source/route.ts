@@ -73,7 +73,7 @@ async function handleDataSourceRequest({ type, source, code, codes, period, endT
       return NextResponse.json({
         success: true,
         data,
-        delayed: source === 'baostock',
+        delayed: source === 'baostock' || source === 'tushare',
         storage: { enabled: isMarketDataPersistenceEnabled(), persisted },
       });
     }
@@ -85,7 +85,7 @@ async function handleDataSourceRequest({ type, source, code, codes, period, endT
       return NextResponse.json({
         success: true,
         data: quotes,
-        delayed: source === 'baostock',
+        delayed: source === 'baostock' || source === 'tushare',
         storage: { enabled: isMarketDataPersistenceEnabled(), persisted },
       });
     }
@@ -110,14 +110,14 @@ async function handleDataSourceRequest({ type, source, code, codes, period, endT
       const mock = generateMockKLineDataForStock(code || '600519', 200, period as TimePeriod);
       return NextResponse.json({ success: true, data: mock, fallback: true });
     }
-    if (type === 'quote' && (source === 'akshare' || source === 'baostock')) {
+    if (type === 'quote' && (source === 'akshare' || source === 'baostock' || source === 'tushare')) {
       const codeList = codes.length > 0 ? codes : [code].filter(Boolean);
       const fallbackQuotes = await fetchQuotes('sina', codeList);
       if (Object.keys(fallbackQuotes).length > 0) {
         return NextResponse.json({ success: true, data: fallbackQuotes, fallback: true, delayed: false });
       }
     }
-    if (type === 'stock-list' && (source === 'akshare' || source === 'baostock')) {
+    if (type === 'stock-list' && (source === 'akshare' || source === 'baostock' || source === 'tushare')) {
       const fallbackStocks = await fetchStockList('sina');
       return NextResponse.json({ success: true, data: fallbackStocks, fallback: true });
     }
@@ -141,6 +141,7 @@ async function fetchKLine(source: string, code: string, period: string): Promise
   switch (source) {
     case 'akshare':
     case 'baostock':
+    case 'tushare':
       return fetchPythonKLine(source as PythonDataProvider, code, period);
     case 'sina': {
       const url = `https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketData.getKLineData?symbol=${getSinaCode(code)}&scale=${getSinaScale(period)}&ma=no&datalen=520`;
@@ -207,6 +208,7 @@ async function fetchQuotes(source: string, codes: string[]): Promise<Record<stri
   switch (source) {
     case 'akshare':
     case 'baostock':
+    case 'tushare':
       return fetchPythonQuotes(source as PythonDataProvider, codes);
     case 'sina': {
       const url = getSinaQuoteUrl(codes);
@@ -292,6 +294,7 @@ async function fetchStockList(source: string): Promise<StockInfo[]> {
   switch (source) {
     case 'akshare':
     case 'baostock':
+    case 'tushare':
       return fetchPythonStockList(source as PythonDataProvider);
     case 'sina': {
       // 并行拉取所有分页（新浪每页最多 100 条），总页数约 56 页

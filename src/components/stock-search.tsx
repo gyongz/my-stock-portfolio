@@ -42,7 +42,7 @@ export default function StockSearch({ value, onSelect, disabled }: StockSearchPr
     if (loadedRef.current) return;
     setLoading(true);
     try {
-      const listSource = dataSourceId === 'akshare' || dataSourceId === 'baostock' ? dataSourceId : 'sina';
+      const listSource = dataSourceId === 'akshare' || dataSourceId === 'baostock' || dataSourceId === 'tushare' ? dataSourceId : 'sina';
       const res = await fetch(`/api/data-source?type=stock-list&source=${listSource}`);
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {

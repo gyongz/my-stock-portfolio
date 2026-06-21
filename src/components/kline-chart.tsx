@@ -107,6 +107,7 @@ const supportedPeriodsBySource: Record<DataSourceId, Set<TimePeriod>> = {
   mock: new Set(timePeriods),
   akshare: new Set(timePeriods),
   baostock: new Set(timePeriods.filter((period) => period !== '1min')),
+  tushare: new Set(['day', 'week', 'month']),
   sina: new Set(['day', 'week', 'month', '60min', '30min']),
   tencent: new Set(['day', 'week', 'month', '60min', '30min']),
   yahoo: new Set(['day', 'week', 'month', '60min', '30min']),
@@ -846,12 +847,12 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
           </span>
         </div>
         <div className="flex w-full min-w-0 items-center justify-end gap-1 overflow-x-auto pb-0.5 sm:w-auto sm:gap-1.5 sm:overflow-visible sm:pb-0">
-          <span className={`shrink-0 text-[11px] sm:text-xs ${dataFallback || dataSourceId === 'baostock' ? 'text-[#ff9f0a]' : 'text-[#30d158]'}`}>
+          <span className={`shrink-0 text-[11px] sm:text-xs ${dataFallback || dataSourceId === 'baostock' || dataSourceId === 'tushare' ? 'text-[#ff9f0a]' : 'text-[#30d158]'}`}>
             {dataLoading
               ? '数据加载中'
               : dataFallback
                 ? '数据源异常 · 模拟降级'
-                : dataSourceId === 'baostock'
+                : dataSourceId === 'baostock' || dataSourceId === 'tushare'
                   ? '历史行情 · 最新收盘'
                   : '真实行情数据'}
           </span>

@@ -1,6 +1,6 @@
 import type { KLineItem, QuoteData, StockInfo } from '@/lib/data-source/types';
 
-export type PythonDataProvider = 'akshare' | 'baostock';
+export type PythonDataProvider = 'akshare' | 'baostock' | 'tushare';
 
 interface BridgeResponse<T> {
   success: boolean;
