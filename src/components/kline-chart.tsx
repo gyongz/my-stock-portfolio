@@ -327,8 +327,8 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     if (paneId && height) chart.setPaneOptions({ id: paneId, height });
   }, []);
 
-  const saveCurrentChartView = useCallback(() => {
-    if (restoringViewRef.current) return;
+  const saveCurrentChartView = useCallback((bypassRestoringRef?: boolean) => {
+    if (!bypassRestoringRef && restoringViewRef.current) return;
     const chart = chartRef.current;
     if (!chart) return;
     const data = chart.getDataList();
@@ -696,9 +696,9 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     const timer = setTimeout(initChart, 100);
     return () => {
       clearTimeout(timer);
+      saveCurrentChartView(true);
       if (viewSaveTimerRef.current !== null) {
         window.clearTimeout(viewSaveTimerRef.current);
-        saveCurrentChartView();
       }
       if (chartRef.current) {
         dispose(chartRef.current);
@@ -777,6 +777,8 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     if (!mounted || dataVersion === 0) return;
     const chart = chartRef.current;
     if (!chart) return;
+    // 在 resetData 前先保存当前视图，避免防抖未触发时丢失
+    saveCurrentChartView(true);
     const drawingSnapshot = clonePersistedSnapshot(committedSnapshotRef.current);
     chart.resetData();
     window.setTimeout(() => {
@@ -784,7 +786,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
       applyDrawingSnapshot(drawingSnapshot, false);
       restoreCurrentChartView(chart);
     }, 0);
-  }, [applyDrawingSnapshot, dataVersion, mounted, restoreCurrentChartView]);
+  }, [applyDrawingSnapshot, dataVersion, mounted, restoreCurrentChartView, saveCurrentChartView]);
 
   useEffect(() => {
     if (!mounted) return;
