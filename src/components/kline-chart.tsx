@@ -327,8 +327,9 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
     const barSpace = chart.getBarSpace().bar;
     if (!Number.isFinite(rightTimestamp) || !Number.isFinite(barSpace)) return;
     writeChartView(stockCode, activePeriod, { barSpace, rightTimestamp });
-    scheduleCloudPreferencesSave();
-  }, [activePeriod, scheduleCloudPreferencesSave, stockCode]);
+    // 视图已经经过独立防抖，直接提交云端，避免刷新/切股时第二层定时器被取消。
+    saveCloudPreferencesNow();
+  }, [activePeriod, saveCloudPreferencesNow, stockCode]);
 
   const scheduleChartViewSave = useCallback(() => {
     if (viewSaveTimerRef.current !== null) window.clearTimeout(viewSaveTimerRef.current);
@@ -520,7 +521,7 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
 
     window.setTimeout(() => restoreCurrentChartView(chart), 0);
 
-    const handleVisibleRangeChange = () => scheduleChartViewSave();
+    const handleChartViewChange = () => scheduleChartViewSave();
     const handlePaneDrag = () => {
       const nextPaneHeights = { ...paneHeightsRef.current };
       chart.getIndicators().forEach((indicator) => {
@@ -530,7 +531,9 @@ export default function KLineChart({ stockCode, stockName, currentPrice, theme }
       });
       persistIndicatorPreferences(nextPaneHeights);
     };
-    chart.subscribeAction('onVisibleRangeChange', handleVisibleRangeChange);
+    chart.subscribeAction('onVisibleRangeChange', handleChartViewChange);
+    chart.subscribeAction('onZoom', handleChartViewChange);
+    chart.subscribeAction('onScroll', handleChartViewChange);
     chart.subscribeAction('onPaneDrag', handlePaneDrag);
 
     const persistedOverlays = clonePersistedSnapshot(normalizePositionSnapshots(remapDrawingDataIndexes(readPersistedOverlays(drawingStorageKey), dataRef.current)));
