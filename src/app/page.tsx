@@ -128,6 +128,23 @@ function HomeContent() {
 
   const isSidePanelCollapsed = sideCollapsed && isWideLayout;
   const renderedSidePanelWidth = isSidePanelCollapsed ? SIDE_PANEL_MIN_WIDTH : sidePanelWidth;
+  const isSidePanelAtMinimum = isWideLayout && sidePanelWidth <= SIDE_PANEL_MIN_WIDTH + 1;
+  const isSidePanelCompact = isSidePanelCollapsed || isSidePanelAtMinimum;
+
+  const toggleSidePanel = useCallback(() => {
+    if (sideCollapsed) {
+      setSideCollapsed(false);
+      return;
+    }
+    if (isSidePanelAtMinimum) {
+      const expandedWidth = Math.min(SIDE_PANEL_DEFAULT_WIDTH, sidePanelMaxWidth);
+      sidePanelWidthRef.current = expandedWidth;
+      setSidePanelWidth(expandedWidth);
+      localStorage.setItem(SIDE_PANEL_WIDTH_STORAGE_KEY, String(expandedWidth));
+      return;
+    }
+    setSideCollapsed(true);
+  }, [isSidePanelAtMinimum, sideCollapsed, sidePanelMaxWidth]);
 
   const updateSidePanelWidth = useCallback((clientX: number) => {
     const nextWidth = Math.min(
@@ -447,12 +464,12 @@ function HomeContent() {
           {/* 收起/展开侧栏按钮 */}
           <button
             type="button"
-            onClick={() => setSideCollapsed((value) => !value)}
+            onClick={toggleSidePanel}
             className="absolute left-0 top-1/2 z-30 hidden h-10 w-5 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-r-lg bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground xl:flex"
-            title={isSidePanelCollapsed ? '展开持仓列表' : '收起持仓列表'}
-            aria-label={isSidePanelCollapsed ? '展开持仓列表' : '收起持仓列表'}
+            title={isSidePanelCompact ? '展开持仓列表' : '收起持仓列表'}
+            aria-label={isSidePanelCompact ? '展开持仓列表' : '收起持仓列表'}
           >
-            <ChevronLeft className={`h-3.5 w-3.5 transition-transform ${isSidePanelCollapsed ? '' : 'rotate-180'}`} />
+            <ChevronLeft className={`h-3.5 w-3.5 transition-transform ${isSidePanelCompact ? '' : 'rotate-180'}`} />
           </button>
           <Tabs value={activeList} onValueChange={(value) => setActiveList(value as 'holdings' | 'watchlist')} className="min-h-0 flex-1 gap-0">
             <div className="flex items-center justify-between gap-2 px-4 py-2">
@@ -494,7 +511,7 @@ function HomeContent() {
                 onDelete={removeHolding}
                 onSelect={handleSelectHolding}
                 selectedId={selectedWatchlistItem ? undefined : selectedHolding?.id}
-                collapsed={isSidePanelCollapsed}
+                collapsed={isSidePanelCompact}
               />
             </TabsContent>
 
@@ -504,11 +521,11 @@ function HomeContent() {
                 onDelete={handleRemoveWatchlist}
                 onSelect={handleSelectWatchlist}
                 selectedCode={selectedHolding ? undefined : selectedWatchlistItem?.code}
-                collapsed={isSidePanelCollapsed}
+                collapsed={isSidePanelCompact}
               />
             </TabsContent>
 
-            {!isSidePanelCollapsed && (
+            {!isSidePanelCompact && (
               <div className="border-t border-border/60 px-4 py-2.5 text-center text-[11px] text-muted-foreground">
                 点击股票联动 K 线 · 行情随数据源自动刷新
               </div>
